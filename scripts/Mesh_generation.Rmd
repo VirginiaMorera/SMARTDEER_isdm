@@ -8,9 +8,7 @@ output:
 ---
 
 ```{r setup, include = FALSE, message = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/Users/Virginia/Dropbox/Virginia_post_UB/IDM")
-setwd("C:/Users/Virginia/Dropbox/Virginia_post_UB/IDM")
+knitr::opts_knit$set(echo = TRUE)
 
 # install.packages 
 library(sf)
@@ -65,9 +63,7 @@ ggplot(boundary) +
   geom_sf(data = ireland, fill = NA, col = "darkgray") + 
   geom_sf(data = all_data_sf, aes(col = Deer.Presence)) + 
   theme_bw()          
-
 ```
-
 
 ## Creation of mesh
 
@@ -160,4 +156,5 @@ plot(poly.barrier, col = "gray", add = T)
 saveRDS(poly.barrier, file = "data/barrier.RDS")
 saveRDS(mesh, file = "data/mesh.RDS")
 saveRDS(boundary2_sp, file = "data/outer_boundary.RDS")
+saveRDS(boundary_sp, file = "inner_boundary.RDS")
 ```
