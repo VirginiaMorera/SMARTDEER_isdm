@@ -57,17 +57,17 @@ bound <- readRDS("data/outer_boundary.RDS")
 
 # Human footprint index 2009
 
-HFI <- raster("data/wildareas-v3-2009-human-footprint.tif")
+HFI <- raster("large_env_data/wildareas-v3-2009-human-footprint.tif")
 bound_temp <- spTransform(bound, CRSobj = HFI@crs)
 HFI_crop <- crop(HFI, bound_temp)
 HFI_crop <- mask(HFI_crop, bound_temp)
 HFI_crop[HFI_crop > 100] <- NA
 plot(HFI_crop)
-writeRaster(HFI_crop, "data/HFI_crop.tif", format = "GTiff")
+writeRaster(HFI_crop, "large_env_data/HFI_crop.tif", format = "GTiff")
 
 # Digital elevation model
 
-DEM_files <- list.files(path = "data/DEM", pattern = ".TIF$", full.names = T)
+DEM_files <- list.files(path = "large_env_data/DEM", pattern = ".TIF$", full.names = T)
 DEM <- mosaic(raster(DEM_files[1]), raster(DEM_files[2]), fun = "mean")
 
 bound_temp <- spTransform(bound, CRSobj = DEM@crs)
@@ -75,7 +75,7 @@ DEM_crop <- crop(DEM, bound_temp)
 DEM_crop <- mask(DEM_crop, bound_temp)
 plot(DEM_crop)
 
-writeRaster(DEM_crop, "ISDM/DEM_crop.tif", format = "GTiff")
+writeRaster(DEM_crop, "large_env_data/DEM_crop.tif", format = "GTiff")
 
 ##--------------------------##
 #### Extract covar values ####
@@ -83,7 +83,7 @@ writeRaster(DEM_crop, "ISDM/DEM_crop.tif", format = "GTiff")
 
 # put all rasters in a stack using custom function 
 # (this takes ages and it's better done in the RStudio server or Sonic cluster)
-cropped_rasters <- list.files(path = "data", pattern = "crop.tif$", full.names = T)
+cropped_rasters <- list.files(path = "large_env_data", pattern = "crop.tif$", full.names = T)
 covar_list <- map(cropped_rasters, raster)
 
 source("scripts/aux_functions.R")
@@ -98,3 +98,9 @@ covar_stack <- readRDS("data/covar_stack.RDS")
 # extract values and turn into SpatialPointsDataFrame
 covar_values <- extract(covar_stack, ipoints_sp, sp = TRUE)
 
+##---------------------------------------##
+#### Load objects needed for modelling ####
+##---------------------------------------##
+
+in_bound <- readRDS("data/inner_boundary.RDS")
+mesh0 <- readRDS("data/mesh.RDS")
