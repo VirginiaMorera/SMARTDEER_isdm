@@ -1,0 +1,163 @@
+---
+title: "Mesh generation for INLA model"
+author: "Morera-Pujol, Virginia"
+date: "June 2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/Virginia/Dropbox/Virginia_post_UB/IDM")
+setwd("C:/Users/Virginia/Dropbox/Virginia_post_UB/IDM")
+
+# install.packages 
+library(sf)
+library(rgeos)
+library(tidyverse)
+library(INLA)
+```
+
+
+## Preparation
+
+### Load map of ireland to use as boundary, and point data to check they're inside the boundary
+
+```{r load data, echo = T, message=FALSE, warning = FALSE}
+ireland <- st_read("data/ireland_ITM.shp")
+all_data <- read.csv("data/all_data.csv", row.names = NULL)
+
+all_data_sf <- all_data %>% 
+  st_as_sf(coords = c("Longitude", "Latitude")) %>% 
+  st_set_crs(st_crs(ireland))
+```
+
+
+### Simplify and buffer 
+
+- Simplify with a tolerance of 10 km (units are in m at these point) 
+- Buffering 15 km from the coast to avoid having points on the edge
+
+```{r inner boundary, echo = T, message=FALSE, warning = FALSE}
+boundary <- ireland %>% 
+  mutate(Country = "Ireland") %>% 
+  group_by(Country) %>%
+  summarise(geometry = sf::st_union(geometry)) %>%
+  ungroup() %>% 
+  st_simplify(dTolerance = 10000) %>% 
+  st_buffer(dist = 15000)
+```
+
+- Buffer the inner boundary by 100 km more to create outer boundary
+
+```{r outer boundary, echo = T, message=FALSE, warning = FALSE}
+boundary2 <- boundary %>% 
+  st_buffer(dist = 100000)
+```
+
+### Plot to check what we've got
+
+```{r plot1, echo = T, message=FALSE, warning = FALSE}
+ggplot(boundary) +
+  geom_sf(data = boundary2, col = "red", fill = NA) +
+  geom_sf(fill =NA) + 
+  geom_sf(data = ireland, fill = NA, col = "darkgray") + 
+  geom_sf(data = all_data_sf, aes(col = Deer.Presence)) + 
+  theme_bw()          
+
+```
+
+
+## Creation of mesh
+
+### Transform so units are in km no in m
+
+```{r transform, echo = T, message=FALSE, warning = FALSE}
+boundary_sp <- boundary %>% 
+  st_transform(st_crs("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
+  as_Spatial()
+
+boundary2_sp <- boundary2 %>% 
+  st_transform(st_crs("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
+  as_Spatial()
+
+all_data_sp <- all_data_sf %>% 
+  st_transform(st_crs("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
+  as_Spatial()
+
+```
+
+### Create boundary objects
+
+- Transform inner boundary into inla segment object
+- Transform outer boundary into inla segment object
+
+```{r boundaries, echo = T, message=FALSE, warning = FALSE}
+boundary_in <- inla.sp2segment(boundary_sp)
+boundary_out <- inla.sp2segment(boundary2_sp)
+```
+
+### Create mesh
+
+- Cutoff of 10 km (segments can't be smaller than 10 km, that's why we needed the simplification)
+- The edge of the triangles in the inner mesh is 20km
+- The edge of the triangles in the outer mesh is 50km 
+
+```{r creating mesh, echo = T, message=FALSE, warning = FALSE}
+mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), max.edge = c(20, 50), cutoff = 10, crs = boundary_sp@proj4string)
+```
+
+### Plot mesh
+
+And add points to check all of them are within the inner boundary
+```{r plotting mesh, echo = T, message=FALSE, warning = FALSE, fig.width = 7*0.8, fig.height = 10*0.7}
+plot(mesh)
+plot(all_data_sp, add = T, col = "red")
+```
+
+## Creation of mask
+
+This will allow us to hide the predictions on the outer boundary from our results (probably there's a better way but just in case)
+This code is taken from Haakon Bakka's barrier model from the website https://haakonbakka.bitbucket.io/btopic107.html#4_barrier_models and it runs all at once
+
+### Code to create the mask
+
+```{r creating mask, echo = T, message=FALSE, warning = FALSE}
+tl = length(mesh$graph$tv[,1]) # Number of triangles of the mesh
+posTri = matrix(0, tl, 2) # matrix containing the coordinates of each triangle's 
+
+# we fill it with the vertex "coordinates here
+for (t in 1:tl) {
+  # Take the vertex of triangles
+  temp = mesh$loc[mesh$graph$tv[t, ], ]
+  # Compute barycenter which sintetize the triangle
+  posTri[t,] = colMeans(temp)[c(1,2)]
+}
+
+#transform it in Spatial Points
+posTri = SpatialPoints(posTri)
+posTri@proj4string <- boundary_sp@proj4string
+
+normal = over(boundary_sp, posTri, returnList = T) # this are the polygons contained in the inner boundary, the "good" ones
+
+normal = unlist(normal)
+barrier.triangles = setdiff(1:tl, normal) # this are the polygons of the outer boundary, the ones we want to hide
+
+# build a polygon that contains all polygons that are outer boundary and not inner. 
+poly.barrier = inla.barrier.polygon(mesh, barrier.triangles)
+```
+
+### Plot the mask to check everything is ok
+
+```{r plot2, echo = T, message=FALSE, warning = FALSE, fig.width = 7*0.8, fig.height = 10*0.7}
+plot(mesh)
+plot(poly.barrier, col = "gray", add = T)
+```
+
+
+```{r saving, eval = FALSE, echo=T, message=FALSE, warning=FALSE}
+saveRDS(poly.barrier, file = "data/barrier.RDS")
+saveRDS(mesh, file = "data/mesh.RDS")
+saveRDS(boundary2_sp, file = "data/outer_boundary.RDS")
+```
