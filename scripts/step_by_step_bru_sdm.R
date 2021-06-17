@@ -1,3 +1,11 @@
+##---------------------------------------##
+#### Load objects needed for modelling ####
+##---------------------------------------##
+
+in_bound <- readRDS("data/inner_boundary.RDS")
+mesh0 <- readRDS("data/mesh.RDS")
+covar_stack <- readRDS("data/covar_stack.RDS")
+
 ##-----------------------------------##
 #### source to load all parameters ####
 ##-----------------------------------##
