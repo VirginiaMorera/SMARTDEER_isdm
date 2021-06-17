@@ -32,7 +32,7 @@ paresp = "PA"
 trialname= NULL
 
 # Should coordinates be used in data
-## Not sure what this means! 
+## Not sure what this means. After checking the code of the function it seems to mean: should we add X and Y as fixed covariates on the model?? 
 inclcoords = FALSE
 
 # An inla.mesh object

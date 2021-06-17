@@ -5,6 +5,11 @@
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
 covar_stack <- readRDS("data/covar_stack.RDS")
+PO_data <- read.csv("data/PO_data.csv", row.names = NULL)
+PA_data <- read.csv("data/PA_data.csv", row.names = NULL)
+
+library(inlabru)
+library(INLA)
 
 ##-----------------------------------##
 #### source to load all parameters ####
@@ -112,11 +117,14 @@ coords_in = unlist(lapply(datasets, function(dat) {
 if (!all(coords_in)) stop("At least one dataset does not have coordinates in it.\nEither check your datasets or change your coordinates argument.")
 
 
-# absolutely no idea what this does!!! 
-# Doesn't seem to be related to our data at all, it will always generate an object of class "character" containing "TRUE", 
-# independently of what data we include, so, what's the point?
-data_names <- setdiff(as.character(match.call(expand.dots=TRUE)), 
-                      as.character(match.call(expand.dots=FALSE)))
+# This only works when run inside the function, but its output is a character vector with the names of the datasets in the order they were entered in the function call, so we'll reproduce it here
+
+
+# data_names <- setdiff(as.character(match.call(expand.dots=TRUE)), 
+#                       as.character(match.call(expand.dots=FALSE)))
+
+data_names <- c("PA_data", "PO_data")
+
 
 #Separate PO and PA data by inclusion/exclusion of 'trialname'.
 
@@ -242,7 +250,6 @@ data_attributes <- lapply(datasets,function(dat) {
     }
 })
 
-# this is probably not working because "data_names" is just 1 character object saying "TRUE". Wonder what it's supposed to do? 
 names(data_attributes) <- data_names
 
 
@@ -263,11 +270,9 @@ names(data_attributes) <- data_names
 #Could fix marks to run multinomial
 #But then I would need to get rid of the inclspecies variable.
 
-#### continue here ####
-# this bit from here to 386 works in the step by step but throws error when run all together
-if (!is.null(speciespresence)) { # because we have different species present in our dataset
+if (!is.null(speciespresence)) { # If a column containing sp info has been specified (lines 271 - 405)
   
-  data_species <- lapply(data_attributes, function(dat) {
+  data_species <- lapply(data_attributes, function(dat) { ## apply the following for each of the elements in data_attributes
     
     if (speciespresence%in%names(dat)) { # so this will run the function only for the datasets that have a "species" column, just in case only the PA data had different sp, for example
       
@@ -306,9 +311,10 @@ if (!is.null(speciespresence)) { # because we have different species present in 
 
       }
       else { # if a species has been specified
+        
         #if include data is not null
         dat <- dat[dat@data[,speciespresence]%in%inclspecies,] # this filters only the obs of the species we have specified
-        if (length(dat) == 0) NULL #?
+        if (length(dat) == 0) NULL # if after filtering there are no rows left
         
         else
           if (length(unique(dat@data[,speciespresence])) == 1) { # if only one species is selected
@@ -356,23 +362,27 @@ if (!is.null(speciespresence)) { # because we have different species present in 
   names(data_species) <- paste0(names(data_species),'_',speciespresence)
   species_names <- names(data_species)
   
-  if (!is.null(inclspecies)) {
-    all_species_in <- lapply(data_species, function(dat) {
+  if (!is.null(inclspecies)) { # if we have specified a species to analyse
+    all_species_in <- lapply(data_species, function(dat) { ## apply ths function to each of the elements in the list "data_species" 
+      
+      # dat <- data_species[[1]]
       
       if (attributes(dat)$multispecies) {
-        if (length(dat) == 0) FALSE
-        else "Multispecies included"
+        if (length(dat) == 0) FALSE # if multispecies == TRUE but length(dat) == 0, return FALSE
+        else "Multispecies included"# if multispecies == TRUE but length(dat) != 0, return "Multispecies included"
       }
-      else FALSE
-    })
+      else FALSE # if multispecies == FALSE, return FALSE
+    })  # this returns a list with two elements, each named as one of our datasets, with either a character "Multispecies included" or a logical "FALSE"
     
-    all_species_in[sapply(all_species_in,is.logical)] <- NULL
+    all_species_in[sapply(all_species_in,is.logical)] <- NULL  # if either of the two datasets returned FALSE in the previous step, it'll be turned to NULL, and if both are the next step will stop the function
     
     if (length(all_species_in) == 0) stop('None of the species specified are found in any datasets.')
   }
   
+  # This obtains a list of species present among both datasets
   names_all_species <- unique(unlist(lapply(data_species, function(dat) {
     
+    # dat <- data_species[[1]]
     names <- as.character(attributes(dat)$species_included)
     names
     
@@ -380,11 +390,13 @@ if (!is.null(speciespresence)) { # because we have different species present in 
   
   ##Remove 'speciespresence' from data_attributes??
   ##Not sure why but fixes issue
+  
   data_attributes <- lapply(data_attributes, function(dat){
     
-    if (speciespresence%in%names(dat)) {
+    # dat <- data_attributes[[1]]  
+    if (speciespresence%in%names(dat)) { # if we provided the column that contains the species info
       
-      dat@data[,speciespresence] <- NULL
+      dat@data[,speciespresence] <- NULL # remove that column from the two elements of the list data_attributes (not filtered, how we'll know which species corresponds to each point??)
       dat
       
     }
@@ -394,7 +406,7 @@ if (!is.null(speciespresence)) { # because we have different species present in 
   
 }
 
-if (marks) {
+if (marks) { # if marks have been specified, which we haven't (407 - 471)
   
   data_marks = list()
   #Make a unique SpatialPointsDataframe for each mark (to be run on spatial covariates).
@@ -479,7 +491,11 @@ if (marks) {
 #  
 #}
 
-if (is.null(mesh)) {
+##---------------------------------##
+#### mesh and integration points ####
+##---------------------------------##
+
+if (is.null(mesh)) { # if mesh is not provided, but we have (lines 492 - 532)
   
   warning("Mesh not provided. Will try to create own mesh.")
   
@@ -521,7 +537,7 @@ if (is.null(mesh)) {
   
 }
 
-if (is.null(ips)) {
+if (is.null(ips)) { # if integration points were not provided, the function will calculate them
   
   warning('Integration points not provided. Will try to create own points')
   
@@ -537,15 +553,19 @@ if (is.null(ips)) {
 #When inlabru update comes, change SpatialPointsDataFrame part
 #SpatialGridDataFrame?
 
-if (inherits(spatialcovariates,'Spatial')) {
-  if (ncol(spatialcovariates) == 1) {
-    if(class(spatialcovariates) == 'SpatialPixelsDataFrame') {
+##------------------------##
+#### spatial covariates ####
+##------------------------##
+
+if (inherits(spatialcovariates,'Spatial')) { # if spatialcovariates is a Spatial* object
+  if (ncol(spatialcovariates) == 1) { # if we only have one spatial covariate (lines 559 - 578)
+    if(class(spatialcovariates) == 'SpatialPixelsDataFrame') { # if spatialcovariates is a SpatialPixelDataframe
       
       proj4string(spatialcovariates) <- proj
       spatnames <- names(spatialcovariates@data)
       assign(spatnames, spatialcovariates)}
     
-    else {
+    else { # if it's a SpatialPointsDataFrame (although according to the function it could be any other Spatial* object, but it would fail with anything other than SpatialPointsDataFrame)
       
       spatnames <- names(spatialcovariates)
       spatcoords <- spatialcovariates@coords
@@ -558,15 +578,19 @@ if (inherits(spatialcovariates,'Spatial')) {
       assign(names(spatpix@data),spatpix)
     }
   }
-  else {
+  else { # if there's more than 1 spatial covariate (not making difference between 1 spatial covariate or >1!)
     
+    # get coords, data, and names of vairables separately
     spatcoords <- spatialcovariates@coords
     spatdata <-  spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
     spatnames <- names(spatdata)
     
+    
+    # turn a spatialpixeldataframe of N covariates into N spatialpixelsdataframe of 1 covariate each. 
     for (i in 1:ncol(spatdata)) {
-      
+      # i = 1
       spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                            grid = spatialcovariates@grid,
                                             data = data.frame(spatdata[,i]), 
                                             tolerance = tol,
                                             proj4string = proj)
@@ -575,9 +599,7 @@ if (inherits(spatialcovariates,'Spatial')) {
       
     }
   }
-}
-
-else
+} else # if the spatialcovariates is NOT a Spatial* object (ours is, so we ignore this!)
   if (class(spatialcovariates) == 'data.frame') {
     
     warning("Spatialcovariates is of class 'data.frame'.\nWill convert it to a SpatialPixelsDataFrame.")
@@ -598,39 +620,52 @@ else
     
   }
 
+##-------------------------##
+#### inla specifications ####
+##-------------------------##
+
+## SPDE ##
 spde2 <- inla.spde2.matern(mesh)
 
 ##Construct joint components for the likelihoods.
 ##Will need to change with inclusion of separate covariates.
 
-if (is.null(poformula) | is.null(paformula)){
+
+## Formulas ##
+# If we haven't specified formulas, it'll construct the same for both models, apparently, and including all covariates in spatialcovariates
+
+if (is.null(poformula) | is.null(paformula)) { 
   
   components_joint <- formula(paste(c('~ 0',paste0(spatnames,'(main = ',spatnames,', model = "linear")')), collapse = '+'))
   
-  if (inclcoords) {
+  if (inclcoords) { # if coords should be added as fixed effects (in our case "no" to start with)
     
     components_joint <- update(components_joint, paste0('~ . +',coords, collapse = '+'))
   }
   
-  if (intercept) {
+  if (intercept) { # if a joint intercept should be added ("no" in our case)
     
     components_joint <- update(components_joint, ~ . + Intercept(1))
     
   }
   
   
-}
+} 
+
+## Model parameters ##
 
 likelihoods = list()
 
 family <- unlist(sapply(data_attributes, function(x) attributes(x)$family))
 
-trials <- sapply(data_attributes, function(x){
+trials <- sapply(data_attributes, function(x){ # if trials is null it will just be a named vector of 1s (one for each dataset)
   
   if (!is.null(attributes(x)$Ntrials)) attributes(x)$Ntrials
   else 1
   
 }) 
+
+#### CONTINUE HERE ####
 
 ##Take out any brackets from 'components_joint'.
 ##I.e (for now) run coordinates only on spatial covariates (and optional others).
