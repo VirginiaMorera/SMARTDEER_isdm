@@ -49,6 +49,7 @@ ips = NULL
 # Polygon of boundary for region, of class Polygon
 ## We'd better provide it, otherwise it'll draw it itself and we've simplified and buffered! 
 bdry  <-  SpatialPolygons(in_bound@polygons)
+bdry@proj4string <- mesh$crs
 
 # Projection to use if data is not a projection
 ## This should not be necessary, since our data is projected, but just in case 

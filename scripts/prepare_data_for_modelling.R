@@ -97,10 +97,3 @@ covar_stack <- readRDS("data/covar_stack.RDS")
 
 # extract values and turn into SpatialPointsDataFrame
 covar_values <- extract(covar_stack, ipoints_sp, sp = TRUE)
-
-##---------------------------------------##
-#### Load objects needed for modelling ####
-##---------------------------------------##
-
-in_bound <- readRDS("data/inner_boundary.RDS")
-mesh0 <- readRDS("data/mesh.RDS")
