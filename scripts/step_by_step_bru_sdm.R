@@ -665,10 +665,14 @@ trials <- sapply(data_attributes, function(x){ # if trials is null it will just 
   
 }) 
 
-#### CONTINUE HERE ####
 
+
+## Create separated formulas for each likelihood ##
+
+# This will take the common formula above and generate a list with the formula for PO data (containing the intercept of the PA likelihood as a variable) and viceversa
 ##Take out any brackets from 'components_joint'.
 ##I.e (for now) run coordinates only on spatial covariates (and optional others).
+
 form_elements <- gsub(" *\\(.*?\\) *", "",components_joint)
 
 formula <- mapply(function(fam,ind) {
@@ -712,6 +716,9 @@ formula <- mapply(function(fam,ind) {
   
 }, fam = family, ind = 1:length(family))
 
+## 
+
+## this generates a list of lists. each sublist contains all the necessary objects for one likelihood (PA and PO)
 for (i in 1:1) {
   
   lhoods <- like(formula = formula[[i]], ##Add tag to this likelihood somehow?
@@ -739,6 +746,7 @@ for (i in 1:1) {
   
   likelihoods
 }
+
 
 if (marks) {
   
@@ -784,6 +792,7 @@ if (marks) {
   
 }
 
+## this will run when speciespresence is not null, i.e. when there are different species in the dataset
 if(!is.null(speciespresence)) {
   
   family_species <- unlist(sapply(data_species, function(x) attributes(x)$family))
@@ -835,9 +844,15 @@ if(!is.null(speciespresence)) {
   }
   
 }
+
+## No idea what this does ##
+
 ips$int_resp <- 0
 #ips <- spTransform(ips, proj) <- doesn't work if ips is not projected
-proj4string(ips) <- proj # <- is this fine?
+proj4string(ips) <- proj # <- is this fine? # it's the one it already has
+
+## Likelihood for Integration Points????? ## 
+
 #Run integration points only on spatialcovariates?
 like_ip = like(formula = formula(paste0(c('int_resp ~ 0', c(spatnames)) ,collapse = '+')), #formula(paste0(c("resp ~", form_elements[2]),collapse = " ")),
                family = 'poisson',
@@ -898,6 +913,7 @@ if (!is.null(speciespresence)) {
 #Add options parameter here
 model_joint <- bru(components = components_joint,
                    likelihoods) #, options = list(control.compute = list(cpo = FALSE, dic = FALSE, waic = FALSE), control.inla = list(int.strategy = "eb")))
+
 
 if (residuals) {
   
