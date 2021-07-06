@@ -10,14 +10,6 @@ markfamily = 'gaussian'
 # Which marks should me included in the model
 inclmarks = NULL
 
-# Name of column used if multiple species are implmented in the model
-## I interpret this as "name of the column that contains species info" 
-speciespresence = "Species"
-
-# A vector of which species should be included in the model
-## Which species are we modelling?
-inclspecies <- "RedDeer"
-
 # Vector of the names of the coordinates used in datasets. Defaults to \code{c('X','Y')} (For now should be standardized)
 coords = c('X','Y')
 
@@ -29,7 +21,7 @@ paresp = "PA"
 
 # Names of column of number of columns in observs. 
 ## WHAAAT. Could use this to specify different years of survey, even if some don't repeat? 
-trialname= NULL
+trialname = NULL
 
 # Should coordinates be used in data
 ## Not sure what this means. After checking the code of the function it seems to mean: should we add X and Y as fixed covariates on the model?? 
@@ -60,7 +52,7 @@ proj  <-  CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_def
 predictions = FALSE
 
 # Should residuals for each dataset be calculated
-residuals = TRUE
+residuals = NULL
 
 # Include joint intercept in the model
 # Include individual intercepts for each dataset in the model

@@ -14,6 +14,7 @@ sel_data <- pre_data %>%
 
 PA_data <- sel_data %>% 
   filter(Source %in% c("Coillte_density", "Coillte_desk")) %>% 
+  filter(Species == "RedDeer") %>% 
   dplyr::select(-Source)  %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>%  # IRENET in m
@@ -24,10 +25,11 @@ PA_data <- sel_data %>%
   rename(PA = Deer.Presence) %>% 
   st_set_geometry(NULL)
 
-write.csv(PA_data, file = "data/PA_data.csv", row.names = F)
+write.csv(PA_data, file = "data/PA_data_RD.csv", row.names = F)
 
 PO_data <- sel_data %>% 
   filter(Source %in% c("NBDC", "webSurvey")) %>% 
+  filter(Species == "RedDeer") %>% 
   dplyr::select(-Source) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>%  # IRENET in m
@@ -38,7 +40,7 @@ PO_data <- sel_data %>%
   rename(PO = Deer.Presence) %>% 
   st_set_geometry(NULL)
 
-write.csv(PO_data, file = "data/PO_data.csv", row.names = F)
+write.csv(PO_data, file = "data/PO_data_RD.csv", row.names = F)
 
 ##------------------------##
 #### Environmental data ####
