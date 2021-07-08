@@ -437,6 +437,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
         spatcoords <- spatialcovariates@coords
         spatdata <- spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
         spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                              grid = spatialcovariates@grid,
                                               data = data.frame(spatdata), 
                                               tolerance = tol,
                                               proj4string = proj)
@@ -453,6 +454,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
       for (i in 1:ncol(spatdata)) {
         
         spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                              grid = spatialcovariates@grid,
                                               data = data.frame(spatdata[,i]), 
                                               tolerance = tol,
                                               proj4string = proj)
@@ -474,6 +476,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
       for (i in 1:ncol(spatdata)) {
         spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
                                               data = data.frame(spatdata[,i]), 
+                                              grid = spatialcovariates@grid,
                                               tolerance = tol,
                                               proj4string = proj)
         colnames(spatpix@data) = spatnames[i]
