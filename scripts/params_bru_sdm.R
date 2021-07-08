@@ -1,5 +1,5 @@
 # Spatial covariates are passed to the function as a SpatialPixelDataFrame
-spatialcovariates <- as(covar_stack, "SpatialPixelsDataFrame")
+spatialcovs <- as(covar_stack, "SpatialPixelsDataFrame")
 
 # Should the model be a marked point process
 marks <-  FALSE
@@ -51,8 +51,9 @@ proj  <-  CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_def
 ##  Not sure what this is about, let's leave the default (FALSE) for now. 
 predictions = FALSE
 
-# Should residuals for each dataset be calculated
-residuals = NULL
+# Should residuals for each dataset be calculated. Options include: response, deviance, residual or NULL if no residuals should be calculated. 
+# Defaults to 'response'.
+residuals = 'response'
 
 # Include joint intercept in the model
 # Include individual intercepts for each dataset in the model
