@@ -1,15 +1,19 @@
-##---------------##
-#### Deer data ####
-##---------------##
-
-pre_data <- read.csv("data/all_data.csv", row.names = NULL)
-
 library(tidyverse)
 library(sf)
 library(sp)
 library(raster)
 
-sel_data <- pre_data %>% 
+
+##---------------##
+#### Deer data ####
+##---------------##
+
+pre_data <- read.csv("data/all_data.csv", row.names = NULL)
+pre_data_NI <- read.csv("data/all_NI_data.csv", row.names = NULL)
+
+all_data <- bind_rows(pre_data, pre_data_NI)
+
+sel_data <- all_data %>% 
   dplyr::select(Year, Species, Deer.Presence, X = Longitude, Y = Latitude, Source)
 
 PA_data <- sel_data %>% 
@@ -78,6 +82,26 @@ DEM_crop <- mask(DEM_crop, bound_temp)
 plot(DEM_crop)
 
 writeRaster(DEM_crop, "large_env_data/DEM_crop.tif", format = "GTiff")
+
+
+# Water and wetness
+
+WAW_files <- list.files(path = "large_env_data/WAW", pattern = ".tif$", full.names = T)
+WAW <- mosaic(raster(WAW_files[1]), raster(WAW_files[2]), fun = "mean")
+
+bound_temp <- spTransform(bound, CRSobj = WAW@crs)
+WAW_crop <- crop(WAW, bound_temp)
+WAW_crop <- mask(WAW_crop, bound_temp)
+WAW_crop[WAW_crop > 100] <- NA
+plot(WAW_crop)
+
+writeRaster(WAW_crop, "large_env_data/WAW_crop.tif", format = "GTiff")
+
+# 0	dry
+# 1	permanent water
+# 2	temporary water
+# 3	permanent wet
+# 4	temporary wet
 
 ##--------------------------##
 #### Extract covar values ####
