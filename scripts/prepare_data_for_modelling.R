@@ -2,6 +2,7 @@ library(tidyverse)
 library(sf)
 library(sp)
 library(raster)
+library(terra)
 
 
 ##---------------##
@@ -59,17 +60,18 @@ ipoints <- data.frame(X = mesh$loc[,1],
 ipoints_sp <- SpatialPoints(coords = mesh$loc, proj4string = CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
 
 # Load outer boundary to crop the rasters
-bound <- readRDS("data/outer_boundary.RDS")
+bound <- readRDS("data/inner_boundary.RDS")
 
 # Human footprint index 2009
 
 HFI <- raster("large_env_data/wildareas-v3-2009-human-footprint.tif")
 bound_temp <- spTransform(bound, CRSobj = HFI@crs)
+bound_temp <- rgeos::gBuffer(bound_temp, width = 2000)
 HFI_crop <- crop(HFI, bound_temp)
 HFI_crop <- mask(HFI_crop, bound_temp)
 HFI_crop[HFI_crop > 100] <- NA
 plot(HFI_crop)
-writeRaster(HFI_crop, "large_env_data/HFI_crop.tif", format = "GTiff")
+writeRaster(HFI_crop, "large_env_data/HFI_crop.tif", format = "GTiff", overwrite = T)
 
 # Digital elevation model
 
