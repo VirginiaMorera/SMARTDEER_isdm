@@ -1,7 +1,7 @@
 #' Function to run marked species distribution models with data from presence only and presence absence data. (and then later account for over dispersion).
 #'
 #' @param ... Point process datasets with coordinates of species, and optionally marks and covariates explaining the coordinates.
-#' @param spatialcovariates Data frame of the spatial covariates accompanied by their associated coordinates.
+#' @param spatialcovariates Data frame of the spatial covariates accompanied by their associated coordinates. Defaults to \code{NULL}.
 #' @param marks Should the model be a marked point process. Defaults to \code{FALSE}.
 #' @param markfamily Assumed distribution of the marks. Defaults to \code{"gaussian"}.
 #' @param inclmarks. A vector of which marks should be included in the model. Defaults to \code{NULL}.
@@ -32,7 +32,7 @@
 #' @import inlabru
 #' @import rgeos
 
-bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian',
+bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'gaussian',
                    inclmarks = NULL, coords = c('X','Y'), poresp = NULL, paresp = NULL,
                    trialname = NULL, inclcoords = FALSE, mesh = NULL, meshpars = NULL, 
                    spdemodel = NULL, ips = NULL, bdry = NULL,
@@ -41,7 +41,9 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
                    pointsspatial = TRUE, marksspatial = TRUE, options = list(),
                    poformula = NULL, paformula = NULL, tol = NULL) {
   
-  if (is.null(spatialcovariates)) stop("Spatial covariates not provided.")
+  #if (is.null(spatialcovariates)) stop("Spatial covariates not provided.")
+  
+  #Add something if indivintercepts & spatialcovariates & spatialpoints all null stop
   
   if (is.null(poresp) | is.null(paresp)) stop("Either the precense only or the precense absence response is null.")
   
@@ -53,7 +55,13 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   
   if (length(coords) != 2) stop("Coordinates must have two components.")
   
-  if(ncol(spatialcovariates) > 1 & is.null(tol)) stop("Tolerance parameter not provided.")
+  if (!is.null(spatialcovariates)) {
+    
+    if (ncol(spatialcovariates) > 1 & is.null(tol)) stop("Tolerance parameter not provided.")
+    
+    if (class(spatialcovariates) == 'data.frame' & is.null(tol)) stop('Please provide a tolerance parameter to convert the spatial covariates to a SpatialPixelsDataFrame.')
+    
+  }
   
   if (as.character(proj@projargs) == "+proj=longlat +ellps=WGS84 +no_defs") warning("Default CRS is being used. Please change if incorrect.")
   
@@ -63,12 +71,10 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
     
   }
   
-  if(!is.null(paformula)) {
+  if (!is.null(paformula)) {
     
     if (as.character(paformula[2]) != paresp) stop(paste("Response variable for presence absence datasets should be: ", paresp,'.', sep = ""))    
   }
-  
-  if (class(spatialcovariates) == 'data.frame' & is.null(tol)) stop('Please provide a tolerance parameter to convert the spatial covariates to a SpatialPixelsDataFrame.')
   
   if (class(proj) != 'CRS') stop("Proj needs to be a CRS object.")
   
@@ -84,7 +90,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   
   if (!is.null(spdemodel)) {
     
-    if (!inherit(spdemodel, 'inla.model.class')) stop("spdemodel needs to be an inla.model.class object.")
+    if (!inherits(spdemodel, 'inla.model.class')) stop("spdemodel needs to be an inla.model.class object.")
     
   }
   
@@ -231,7 +237,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
                                               proj4string = proj)
             colnames(dat@data) <- names
             if (!poresp%in%colnames(dat@data)) {
-              dat[,poresp] <- 1
+              dat@data[,poresp] <- 1
             }
             attr(dat,'family') <- 'cp'
             attr(dat,'data_type') <- 'Present only'
@@ -409,7 +415,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
         #PROBABLY NEED TO ASSIGN ANOTHER VAR
         
         ind <- as.numeric(unlist(ind)) 
-        assign(paste(multiname), ind)
+        assign(paste0(multiname,'_group'), ind)
         assign(paste0(multiname,'_ngroup'),max(ind))   
         
       }
@@ -423,9 +429,10 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
       
     }
     
-    if (length(multinom_incl) == length(data_marks)) datasets_numeric_marks <- NULL
+    if (all(multinom_incl)) datasets_numeric_marks <- NULL
     
   }
+  
   
   if (is.null(mesh)) {
     
@@ -485,80 +492,81 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   #When inlabru update comes, change SpatialPointsDataFrame part
   #SpatialGridDataFrame?
   #Remove the if ncol == 1,
-  
-  if (inherits(spatialcovariates,'Spatial')) {
-    if (ncol(spatialcovariates) == 1) {
-      if(class(spatialcovariates) == 'SpatialPixelsDataFrame') {
+  if (!is.null(spatialcovariates)) {
+    
+    if (inherits(spatialcovariates,'Spatial')) {
+      if (ncol(spatialcovariates) == 1) {
+        if(class(spatialcovariates) == 'SpatialPixelsDataFrame') {
+          
+          proj4string(spatialcovariates) <- proj
+          spatnames <- names(spatialcovariates@data)
+          assign(spatnames, spatialcovariates)}
         
-        proj4string(spatialcovariates) <- proj
-        spatnames <- names(spatialcovariates@data)
-        assign(spatnames, spatialcovariates)}
-      
+        else {
+          
+          spatnames <- names(spatialcovariates)
+          spatcoords <- spatialcovariates@coords
+          spatdata <- spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
+          spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                                data = data.frame(spatdata), 
+                                                tolerance = tol,
+                                                proj4string = proj)
+          names(spatpix@data) <- spatnames
+          assign(names(spatpix@data),spatpix)
+        }
+      }
       else {
         
-        spatnames <- names(spatialcovariates)
         spatcoords <- spatialcovariates@coords
-        spatdata <- spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
-        spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
-                                              data = data.frame(spatdata), 
-                                              tolerance = tol,
-                                              proj4string = proj)
-        names(spatpix@data) <- spatnames
-        assign(names(spatpix@data),spatpix)
+        spatdata <-  spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
+        spatnames <- names(spatdata)
+        
+        for (i in 1:ncol(spatdata)) {
+          
+          spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                                data = data.frame(spatdata[,i]), 
+                                                tolerance = tol,
+                                                proj4string = proj)
+          colnames(spatpix@data) = colnames(spatdata)[i]
+          assign(names(spatpix@data),spatpix)
+          
+        }
       }
     }
-    else {
-      
-      spatcoords <- spatialcovariates@coords
-      spatdata <-  spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
-      spatnames <- names(spatdata)
-      
-      for (i in 1:ncol(spatdata)) {
+    
+    else
+      if (class(spatialcovariates) == 'data.frame') {
         
-        spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
-                                              data = data.frame(spatdata[,i]), 
-                                              tolerance = tol,
-                                              proj4string = proj)
-        colnames(spatpix@data) = colnames(spatdata)[i]
-        assign(names(spatpix@data),spatpix)
+        warning("Spatialcovariates is of class 'data.frame'.\nWill convert it to a SpatialPixelsDataFrame.")
+        spatcoords <- spatialcovariates[,coords]
+        spatdata <- as.data.frame(spatialcovariates[,!colnames(spatialcovariates)%in%coords])
+        spatnames <- names(spatialcovariates)[!colnames(spatialcovariates)%in%coords]
+        
+        for (i in 1:ncol(spatdata)) {
+          spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
+                                                data = data.frame(spatdata[,i]), 
+                                                tolerance = tol,
+                                                proj4string = proj)
+          colnames(spatpix@data) = spatnames[i]
+          
+          assign(names(spatpix@data),spatpix)
+          
+        }
         
       }
+    
+    spatdata_class <- c()
+    
+    for (cov in spatnames) {
+      
+      spatdata_class[cov] <- class(eval(call("$", eval(call("@", as.symbol(cov), as.symbol("data"))), as.symbol(cov))))
+      
     }
   }
-  
-  else
-    if (class(spatialcovariates) == 'data.frame') {
-      
-      warning("Spatialcovariates is of class 'data.frame'.\nWill convert it to a SpatialPixelsDataFrame.")
-      spatcoords <- spatialcovariates[,coords]
-      spatdata <- as.data.frame(spatialcovariates[,!colnames(spatialcovariates)%in%coords])
-      spatnames <- names(spatialcovariates)[!colnames(spatialcovariates)%in%coords]
-      
-      for (i in 1:ncol(spatdata)) {
-        spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
-                                              data = data.frame(spatdata[,i]), 
-                                              tolerance = tol,
-                                              proj4string = proj)
-        colnames(spatpix@data) = spatnames[i]
-        
-        assign(names(spatpix@data),spatpix)
-        
-      }
-      
-    }
   
   if (is.null(spdemodel)) {
     
     spdemodel <- inla.spde2.matern(mesh)
-    
-  }
-  
-  
-  spatdata_class <- c()
-  
-  for (cov in spatnames) {
-    
-    spatdata_class[cov] <- class(eval(call("$", eval(call("@", as.symbol(cov), as.symbol("data"))), as.symbol(cov))))
     
   }
   
@@ -578,26 +586,29 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   
   if (is.null(poformula) | is.null(paformula)){
     
-    components_joint <- formula( ~ 0)
+    components_joint <- formula( ~ - 1)
     
-    for (cov in 1:length(spatdata_class)) {
+    if (!is.null(spatialcovariates)) {
       
-      if (spatdata_class[cov] == 'numeric') {
+      for (cov in 1:length(spatdata_class)) {
         
-        components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "linear")'))))
-        
-      }
-      else
-        
-        if (indivintercepts) {
+        if (spatdata_class[cov] == 'numeric') {
           
-          components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "factor_contrast")'))))
-          
-        } else {
-          
-          components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "factor_full")'))))
+          components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "linear")'))))
           
         }
+        else
+          
+          if (indivintercepts) {
+            
+            components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "factor_contrast")'))))
+            
+          } else {
+            
+            components_joint <- update(components_joint, paste(c(' ~ . +', paste0(spatnames[cov],'(main = ', spatnames[cov], ', model = "factor_full")'))))
+            
+          }
+      }
       
       
     }
@@ -615,6 +626,11 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
       
     }
     
+    #if (!is.null(multinom_vars)) {
+    
+    #components_joint <- update(components_joint, paste(' ~ . +',paste0(multinom_vars,'_spde(main = coordinates, model = spdemodel, group =', multinom_vars,'_group , ngroup = ',multinom_vars,'_ngroup)')))
+    
+    #}
     
   }
   
@@ -624,7 +640,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   
   trials <- sapply(data_attributes, function(x){
     
-    if (!is.null(attributes(x)$Ntrials)) attributes(x)$Ntrials
+    if (!is.null(attributes(x)$Ntrials)) data.frame(attributes(x)$Ntrials)
     else 1
     
   }) 
@@ -698,8 +714,6 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
     
   }
   
-  
-  
   for (i in 1:1) {
     
     lhoods <- inlabru::like(formula = formula[[i]], ##Add tag to this likelihood somehow?
@@ -707,7 +721,7 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
                             data = data_attributes[[i]],
                             mesh = mesh,
                             ips = ips,
-                            Ntrials = trials[i],#,
+                            Ntrials = trials[[i]],#,
                             include = include[[i]])#,
     # E_param[i])
     likelihoods <- like_list(lhoods)
@@ -751,9 +765,11 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
       formula_marks[[i]] <- formula(paste0(c(names_marks[i],'~',form_elements[2]),collapse = " "))
       
       if (marksspatial) {
-        if (!is.null(datasets_numeric_marks)) {
-          formula_marks[[i]] <- update(formula_marks[[i]], paste0(" . ~ . +",datasets_numeric_marks,'_spde'))#names(data_marks)[i]
-        }
+        #if (!is.null(datasets_numeric_marks)) {
+        
+        formula_marks[[i]] <- update(formula_marks[[i]], paste0(" . ~ . +",names(data_marks)[[i]],'_spde'))#names(data_marks)[i]
+        
+        #}
       }
       
       if (indivintercepts) { #probably fix something here? No indiv intercepts for multinomial response, but indiv intercepts for marks
@@ -776,10 +792,10 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
     
     include_marks <- list()
     
-    for (i in 1:length(formula)) {
+    for (i in 1:length(formula_marks)) {
       
       variables <- all.vars(formula_marks[[i]])
-      include_marks[[i]] <- variables[!variables%in%as.character(formula_marks[[i]][2])]
+      include_marks[[i]] <- variables[!variables%in%c(as.character(formula_marks[[i]][2]),coords)]
       formula_marks[[i]] <- as.formula(paste(variables[!variables%in%include_marks[[i]]], '~ .'))
       
     }
@@ -839,11 +855,12 @@ bru_sdm = function(..., spatialcovariates, marks = FALSE, markfamily = 'gaussian
   }
   
   if (marksspatial) {
-    if (!is.null(datasets_numeric_marks)) {
-      
-      components_joint <- update(components_joint, paste('. ~ . +',paste0(names(datasets_numeric_marks),'_spde(main = coordinates, model = spdemodel)',collapse = ' + ')))
-      
-    }
+    #if (!is.null(datasets_numeric_marks)) {
+    
+    #components_joint <- update(components_joint, paste('. ~ . +',paste0(names(datasets_numeric_marks),'_spde(main = coordinates, model = spdemodel)',collapse = ' + ')))
+    components_joint <- update(components_joint, paste('. ~ . +',paste0(names(data_marks),'_spde(main = coordinates, model = spdemodel)',collapse = ' + ')))
+    
+    #}
   }
   
   if (marks) {
