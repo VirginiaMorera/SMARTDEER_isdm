@@ -59,7 +59,8 @@ mesh <- readRDS("data/mesh.RDS")
 ipoints <- data.frame(X = mesh$loc[,1], 
                       Y = mesh$loc[,2])
 
-ipoints_sp <- SpatialPoints(coords = mesh$loc, proj4string = CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
+ipoints_sp <- SpatialPoints(coords = mesh$loc, 
+                            proj4string = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
 
 # Load outer boundary to crop the rasters
 bound <- readRDS("data/inner_boundary.RDS")
@@ -123,7 +124,8 @@ covar_stack <- list_to_stack(covar_list, new_res = c(1, 1),
 
 saveRDS(covar_stack, file = "data/covar_stack.RDS") # we've actually cheated and done this in the RStudio server, saved it, and we load it here
 
-covar_stack <- readRDS("data/covar_stack.RDS")
 
+covar_stack <- readRDS("data/covar_stack.RDS")
+covar_stack <- projectRaster(covar_stack, crs = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
 # extract values and turn into SpatialPointsDataFrame
 covar_values <- extract(covar_stack, ipoints_sp, sp = TRUE)
