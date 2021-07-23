@@ -509,6 +509,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
           spatdata <- spatialcovariates@data[,!colnames(spatialcovariates@data)%in%coords]
           spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
                                                 data = data.frame(spatdata), 
+                                                grid = spatialcovariates@grid,
                                                 tolerance = tol,
                                                 proj4string = proj)
           names(spatpix@data) <- spatnames
@@ -525,6 +526,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
           
           spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
                                                 data = data.frame(spatdata[,i]), 
+                                                # grid = spatialcovariates@grid,
                                                 tolerance = tol,
                                                 proj4string = proj)
           colnames(spatpix@data) = colnames(spatdata)[i]
@@ -545,6 +547,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
         for (i in 1:ncol(spatdata)) {
           spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
                                                 data = data.frame(spatdata[,i]), 
+                                                grid = spatialcovariates@grid,
                                                 tolerance = tol,
                                                 proj4string = proj)
           colnames(spatpix@data) = spatnames[i]
