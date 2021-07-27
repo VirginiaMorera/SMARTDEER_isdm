@@ -110,6 +110,8 @@ And add points to check all of them are within the inner boundary
 ```{r plotting mesh, echo = T, message=FALSE, warning = FALSE, fig.width = 7*0.8, fig.height = 10*0.7}
 plot(mesh)
 plot(all_data_sp, add = T, col = "red")
+plot(boundary_sp, border = "green", add = T)
+plot(boundary2_sp, border = "orange", add = T)
 ```
 
 ## Creation of mask
@@ -156,5 +158,5 @@ plot(poly.barrier, col = "gray", add = T)
 saveRDS(poly.barrier, file = "data/barrier.RDS")
 saveRDS(mesh, file = "data/mesh.RDS")
 saveRDS(boundary2_sp, file = "data/outer_boundary.RDS")
-saveRDS(boundary_sp, file = "inner_boundary.RDS")
+saveRDS(boundary_sp, file = "data/inner_boundary.RDS")
 ```
