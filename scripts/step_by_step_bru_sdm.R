@@ -3,7 +3,7 @@
 ##---------------------------------------##
 
 in_bound <- readRDS("data/inner_boundary.RDS")
-mesh0 <- readRDS("data/mesh.RDS")
+meshT <- readRDS("data/meshTest.RDS")
 covar_stack <- readRDS("data/covar_stack.RDS")
 PO_data <- read.csv("data/PO_data_RD.csv", row.names = NULL)
 PA_data <- read.csv("data/PA_data_RD.csv", row.names = NULL)
