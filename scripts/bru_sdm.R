@@ -37,7 +37,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
                    trialname = NULL, inclcoords = FALSE, mesh = NULL, meshpars = NULL, 
                    spdemodel = NULL, ips = NULL, bdry = NULL,
                    proj = CRS("+proj=longlat +ellps=WGS84"),predictions = FALSE,
-                   residuals = 'model', intercept = FALSE, indivintercepts = TRUE,
+                   residuals = , intercept = FALSE, indivintercepts = TRUE,
                    pointsspatial = TRUE, marksspatial = TRUE, options = list(),
                    poformula = NULL, paformula = NULL, tol = NULL) {
   
@@ -526,7 +526,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
           
           spatpix <- sp::SpatialPixelsDataFrame(points = spatcoords,
                                                 data = data.frame(spatdata[,i]), 
-                                                # grid = spatialcovariates@grid,
+                                                grid = spatialcovariates@grid,
                                                 tolerance = tol,
                                                 proj4string = proj)
           colnames(spatpix@data) = colnames(spatdata)[i]
