@@ -41,7 +41,7 @@ meshpars = NULL
 # effect can detect, as per Hakoon’s suggestion here https://groups.google.com/forum/embed/?parenturl=http%3A%2F%2Fwww.r-inla.org%2Fcomments-1&service=jotspot&ul=1&theme=default&place=forum%2Fr-inla-discussion-group&showpopout=true&showsearch=true#!searchin/r-inla-discussion-group/ long$20tail$20range$20spde$20random$20effect/r-inla-discussion-group/ZhZVu8YPI8I/xB9xWHkHCQAJ.
 spdemodel = NULL
 
-spdemodel = INLA::inla.spde2.pcmatern(mesh = mesh, alpha = 3/2,  ### mesh and smoothness parameter
+spdemodel_pc = INLA::inla.spde2.pcmatern(mesh = mesh, alpha = 3/2,  ### mesh and smoothness parameter
                                       prior.range = c(20, 0.01), ### P(practic.range < 20) Very small probability the range is smaller than 20 (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior) 
                                       prior.sigma = c(0.2, 0.01)) ### P(sigma > 0.2) Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 0.2
 
@@ -56,11 +56,11 @@ bdry@proj4string <- mesh$crs
 
 # Projection to use if data is not a projection
 ## This should not be necessary, since our data is projected, but just in case 
-proj  <-  CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")
+proj  <-  CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")
 
 # Boolean: should predictions (on the linear scale) be made?
 ##  Not sure what this is about, let's leave the default (FALSE) for now. 
-predictions = TRUE
+predictions = FALSE
 
 # Should residuals for each dataset be calculated. Options include: response, deviance, residual or NULL if no residuals should be calculated. 
 # Defaults to 'response'.
