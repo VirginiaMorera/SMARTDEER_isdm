@@ -37,7 +37,7 @@ bru_sdm = function(..., spatialcovariates = NULL, marks = FALSE, markfamily = 'g
                    trialname = NULL, inclcoords = FALSE, mesh = NULL, meshpars = NULL, 
                    spdemodel = NULL, ips = NULL, bdry = NULL,
                    proj = CRS("+proj=longlat +ellps=WGS84"),predictions = FALSE,
-                   residuals = , intercept = FALSE, indivintercepts = TRUE,
+                   residuals = 'response', intercept = FALSE, indivintercepts = TRUE,
                    pointsspatial = TRUE, marksspatial = TRUE, options = list(),
                    poformula = NULL, paformula = NULL, tol = NULL) {
   
