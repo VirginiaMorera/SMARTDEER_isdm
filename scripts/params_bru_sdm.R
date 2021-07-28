@@ -1,5 +1,5 @@
 # Spatial covariates are passed to the function as a SpatialPixelDataFrame
-spatialcovariates <- as(covar_stack, "SpatialPixelsDataFrame")
+spatialcovariates <- as(covar_stack$HFI_crop, "SpatialPixelsDataFrame")
 
 # Should the model be a marked point process
 marks <-  FALSE
