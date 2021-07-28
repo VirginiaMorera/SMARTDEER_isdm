@@ -37,6 +37,7 @@ source("scripts/outputs.R")
 summary.bru_sdm(mdl1)
 summary.bru_sdm(mdl2)
 
+
 mdl3 <- bru_sdm(PO_data_sub, PA_data_sub, spatialcovariates = spatialcovariates, marks = FALSE, markfamily = 'gaussian',
                 inclmarks = NULL, coords = c('X','Y'), poresp = "PO", paresp = "PA",
                 trialname = NULL, inclcoords = FALSE, mesh = mesh, meshpars = NULL,
