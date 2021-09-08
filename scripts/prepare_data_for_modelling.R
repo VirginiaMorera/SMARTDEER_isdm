@@ -1,18 +1,16 @@
-library(tidyverse)
-library(sf)
-library(sp)
-library(raster)
-
 ##---------------##
 #### Deer data ####
 ##---------------##
 
 pre_data <- read.csv("data/all_data.csv", row.names = NULL)
 pre_data_NI <- read.csv("data/all_NI_data.csv", row.names = NULL)
+
+pre_data_NI <- pre_data_NI %>% 
+  rename(Longitude = X, Latitude = Y)
 ireland <- st_read("data/ireland_ITM.shp") %>% 
   st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))  # IRENET in km
 
-all_data <- pre_data  
+# all_data <- pre_data  
 all_data <- bind_rows(pre_data, pre_data_NI)
 
 sel_data <- all_data %>% 
@@ -21,10 +19,13 @@ sel_data <- all_data %>%
   st_set_crs(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>%  # IRENET in m
   st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))  # IRENET in km
 
-ggplot(sel_data) + 
+sel_data %>% 
+  # filter(Species %!in% c("Hybrid", "MuntjacDeer", "Unknown")) %>% 
+  ggplot + 
   geom_sf(data = ireland, col = "darkgray", fill = "gray80") +
-  geom_sf(aes(col = Species), alpha = 0.5) +
-  theme_bw() 
+  geom_sf(aes(col = Deer.Presence), alpha = 0.5) +
+  theme_bw() + 
+  facet_wrap(~Species)
 
 PA_data <- sel_data %>% 
   filter(Source %in% c("Coillte_density", "Coillte_desk")) %>% 
@@ -49,15 +50,6 @@ PO_data <- sel_data %>%
   st_set_geometry(NULL)
 
 write.csv(PO_data, file = "data/PO_data_RD.csv", row.names = F)
-
-
-## subset deer data for testing
-
-PA_data_sub <- PA_data %>% 
-  sample_n(500)
-
-PO_data_sub <- PO_data %>% 
-  sample_n(250)
 
 ##------------------------##
 #### Environmental data ####

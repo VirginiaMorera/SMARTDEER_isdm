@@ -1,14 +1,21 @@
-library(inlabru)
-library(INLA)
-
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
 covar_stack <- readRDS("data/covar_stack.RDS")
+spatialcovariates <- as(covar_stack$HFI_crop, "SpatialPixelsDataFrame")
 source("scripts/params_bru_sdm.R")
 source("scripts/bru_sdm.R")
 
 PO_data <- read.csv("data/PO_data_RD.csv", row.names = NULL)
 PA_data <- read.csv("data/PA_data_RD.csv", row.names = NULL)
+
+red_deer_data <- organize_data(PO_data, PA_data, poresp = "PO", paresp = "PA",
+                               trialname = NULL, coords = c("X", "Y"), proj = ITM,
+                               marks = FALSE, inclmarks = NULL,
+                               markfamily = 'gaussian', timevariable = NULL,
+                               ips = NULL, mesh = mesh0,
+                               meshpars = NULL, boundary = in_bound)
+
+
 
 mdl1 <- bru_sdm(PO_data, PA_data, spatialcovariates = NULL, marks = FALSE, markfamily = 'gaussian',
                 inclmarks = NULL, coords = c('X','Y'), poresp = "PO", paresp = "PA",
