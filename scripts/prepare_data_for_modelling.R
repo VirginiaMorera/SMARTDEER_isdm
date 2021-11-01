@@ -17,15 +17,7 @@ sel_data <- all_data %>%
   dplyr::select(County, Year, Species, Deer.Presence, Y = Latitude, X = Longitude, Source) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>%  # IRENET in m
-  st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))  # IRENET in km
-
-sel_data %>% 
-  # filter(Species %!in% c("Hybrid", "MuntjacDeer", "Unknown")) %>% 
-  ggplot + 
-  geom_sf(data = ireland, col = "darkgray", fill = "gray80") +
-  geom_sf(aes(col = Deer.Presence), alpha = 0.5) +
-  theme_bw() + 
-  facet_wrap(~Species)
+  st_transform(ITM_km)  # IRENET in km
 
 PA_data <- sel_data %>% 
   filter(Source %in% c("Coillte_density", "Coillte_desk")) %>% 
@@ -40,7 +32,8 @@ PA_data <- sel_data %>%
 write.csv(PA_data, file = "data/PA_data_RD.csv", row.names = F)
 
 PO_data <- sel_data %>% 
-  filter(Source %in% c("NBDC", "webSurvey")) %>% 
+  # filter(Source %in% c("NBDC", "webSurvey")) %>%
+  filter(Source == "webSurvey") %>%
   filter(Species == "RedDeer") %>% 
   dplyr::select(-Source) %>% 
   dplyr::mutate(X = sf::st_coordinates(.)[,1],
@@ -49,85 +42,110 @@ PO_data <- sel_data %>%
   rename(PO = Deer.Presence) %>% 
   st_set_geometry(NULL)
 
-write.csv(PO_data, file = "data/PO_data_RD.csv", row.names = F)
+write.csv(PO_data, file = "data/PO_webSurvey_data_RD.csv", row.names = F)
+
 
 ##------------------------##
 #### Environmental data ####
 ##------------------------##
 
-# Obtain integration points (mesh nodes) to extract covariate values at those points
-mesh <- readRDS("data/mesh.RDS") 
-
-ipoints <- data.frame(X = mesh$loc[,1], 
-                      Y = mesh$loc[,2])
-
-ipoints_sp <- SpatialPoints(coords = mesh$loc, 
-                            proj4string = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
-
-# Load outer boundary to crop the rasters
-bound <- readRDS("data/inner_boundary.RDS")
-
-# Human footprint index 2009
-
-HFI <- raster("large_env_data/wildareas-v3-2009-human-footprint.tif")
-bound_temp <- spTransform(bound, CRSobj = HFI@crs)
-bound_temp <- rgeos::gBuffer(bound_temp, width = 2000)
-HFI_crop <- crop(HFI, bound_temp)
-HFI_crop <- mask(HFI_crop, bound_temp)
-HFI_crop[HFI_crop > 100] <- NA
-plot(HFI_crop)
-writeRaster(HFI_crop, "large_env_data/HFI_crop.tif", format = "GTiff", overwrite = T)
-
-# Digital elevation model
-
-DEM_files <- list.files(path = "large_env_data/DEM", pattern = ".TIF$", full.names = T)
-DEM <- mosaic(raster(DEM_files[1]), raster(DEM_files[2]), fun = "mean")
-
-bound_temp <- spTransform(bound, CRSobj = DEM@crs)
-DEM_crop <- crop(DEM, bound_temp)
-DEM_crop <- mask(DEM_crop, bound_temp)
-plot(DEM_crop)
-
-writeRaster(DEM_crop, "large_env_data/DEM_crop.tif", format = "GTiff")
+# We're only going to load the data that, a priori, we want to enter in the model
+env_data <- stack("large_env_data/covar_subset.grd")
+plot(env_data)
 
 
-# Water and wetness
+# Previsualisation with Presence/Absence data
+PA_data_sf <- PA_data %>% 
+  st_as_sf(coords = c("X", "Y"), crs = ITM_km) %>% 
+  st_transform(env_data@crs)
 
-WAW_files <- list.files(path = "large_env_data/WAW", pattern = ".tif$", full.names = T)
-WAW <- mosaic(raster(WAW_files[1]), raster(WAW_files[2]), fun = "mean")
+PA_covars <- extract(env_data, PA_data_sf)  
 
-bound_temp <- spTransform(bound, CRSobj = WAW@crs)
-WAW_crop <- crop(WAW, bound_temp)
-WAW_crop <- mask(WAW_crop, bound_temp)
-WAW_crop[WAW_crop > 100] <- NA
-plot(WAW_crop)
+PA_covars <- as.data.frame(cbind(PA = PA_data$PA, PA_covars))
 
-writeRaster(WAW_crop, "large_env_data/WAW_crop.tif", format = "GTiff")
+tcd_plot <- ggplot(PA_covars) + 
+  geom_jitter(aes(x = factor(PA), y = tree_cover_density, col = factor(PA)), 
+              alpha = 0.1, width = 0.1) + 
+  geom_boxplot(aes(x = factor(PA), y = tree_cover_density, fill = factor(PA)), 
+               alpha = 0.5, outlier.shape = NA) + 
+  scale_fill_tableau() +
+  scale_color_tableau() +
+  labs(x = "", y = "Tree Cover Density", fill = "PA") +
+  theme_bw() + 
+  guides(color = "none") +
+  # facet_wrap(~Classification, scales = "free_x") +
+  # theme(legend.position = "None") + 
+  NULL
 
-# 0	dry
-# 1	permanent water
-# 2	temporary water
-# 3	permanent wet
-# 4	temporary wet
+ele_plot <- ggplot(PA_covars) + 
+  geom_jitter(aes(x = factor(PA), y = elevation, col = factor(PA)), 
+              alpha = 0.1, width = 0.1) + 
+  geom_boxplot(aes(x = factor(PA), y = elevation, fill = factor(PA)), 
+               alpha = 0.5, outlier.shape = NA) + 
+  scale_fill_tableau() +
+  scale_color_tableau() +
+  labs(x = "", y = "elevation", fill = "PA") +
+  theme_bw() + 
+  guides(color = "none") +
+  # facet_wrap(~Classification, scales = "free_x") +
+  # theme(legend.position = "None") + 
+  NULL
 
-##--------------------------##
-#### Extract covar values ####
-##--------------------------##
+slo_plot <- ggplot(PA_covars) + 
+  geom_jitter(aes(x = factor(PA), y = slope, col = factor(PA)), 
+              alpha = 0.1, width = 0.1) + 
+  geom_boxplot(aes(x = factor(PA), y = slope, fill = factor(PA)), 
+               alpha = 0.5, outlier.shape = NA) + 
+  scale_fill_tableau() +
+  scale_color_tableau() +
+  labs(x = "", y = "Slope", fill = "PA") +
+  theme_bw() + 
+  guides(color = "none") +
+  # facet_wrap(~Classification, scales = "free_x") +
+  # theme(legend.position = "None") + 
+  NULL
 
-# put all rasters in a stack using custom function 
-# (this takes ages and it's better done in the RStudio server or Sonic cluster)
-cropped_rasters <- list.files(path = "large_env_data", pattern = "crop.tif$", full.names = T)
-covar_list <- map(cropped_rasters, raster)
+hfi_plot <- ggplot(PA_covars) + 
+  geom_jitter(aes(x = factor(PA), y = human_footprint_index, col = factor(PA)), 
+              alpha = 0.1, width = 0.1) + 
+  geom_boxplot(aes(x = factor(PA), y = human_footprint_index, fill = factor(PA)), 
+               alpha = 0.5, outlier.shape = NA) + 
+  scale_fill_tableau() +
+  scale_color_tableau() +
+  labs(x = "", y = "Human footprint index", fill = "PA") +
+  theme_bw() + 
+  guides(color = "none") +
+  # facet_wrap(~Classification, scales = "free_x") +
+  # theme(legend.position = "None") + 
+  NULL
 
-source("scripts/aux_functions.R")
+lcv_plot <- PA_covars %>%
+  mutate(landCover2 = recode(landCover, "1" = "Built area", "4" = "Freshwater related", "5" = "Other vegetation",
+                             "6" = "Agricultura land", "7" = "Pastures", "8" = "Grassland", "9" = "Transitional",
+                             "10" = "Coniferous forest", "11" = "Mixed forest", "12" = "Broadleaf forest")) %>%
+  ggplot + 
+  geom_bar(aes(fill = landCover2, x = factor(PA)), position = "fill") + 
+  scale_fill_tableau() + 
+  labs(y = "Proportion", x = "", fill = "Land Cover") +
+  theme_bw()
 
-covar_stack <- list_to_stack(covar_list, new_res = c(1, 1), 
-                             dest_crs = CRS("+proj=tmerc +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
 
-saveRDS(covar_stack, file = "data/covar_stack.RDS") # we've actually cheated and done this in the RStudio server, saved it, and we load it here
+plot_grid(tcd_plot, ele_plot, slo_plot, hfi_plot, lcv_plot)
+ggsave("covar_eval.png", scale = 2)
 
+PO_data_sf <- PO_data %>% 
+  st_as_sf(coords = c("X", "Y"), crs = ITM_km) %>% 
+  st_transform(env_data@crs)
 
-covar_stack <- readRDS("data/covar_stack.RDS")
-covar_stack <- projectRaster(covar_stack, crs = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
-# extract values and turn into SpatialPointsDataFrame
-covar_values <- extract(covar_stack, ipoints_sp, sp = TRUE)
+PO_data_sp <- SpatialPoints(st_coordinates(PO_data_sf), proj4string = env_data@crs)
+
+PO_raster <- rasterize(PO_data_sp, env_data$landCover, fun='count', na.rm = T)
+
+plot(PO_raster)
+
+env_data2 <- stack(env_data, PO_raster)
+
+names(env_data2)[6] <- "Deer_per_cell"
+
+cor <-layerStats(env_data2, 'pearson', na.rm = T)
+ggcorrplot(cor$`pearson correlation coefficient`, method = "circle", show.diag = F, type = "upper", lab = T) 
