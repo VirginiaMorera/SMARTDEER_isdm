@@ -3,25 +3,29 @@
 #' @param ... Point process datasets with coordinates of species, and optionally marks and covariates explaining the coordinates.
 #' @param poresp Name for the response variable for the presence only datasets. Defaults to \code{NULL}. If no presence only response is found in dataset, a vector of 1's will be used.  
 #' @param paresp Name for the response variable for the presence absence datasets. Defaults to \code{NULL}. Note that this column may also be logical.
-#' @param trialname Names of column of number of columns in observs. Defaults to \code{NULL}.
+#' @param trialname Name of column in data denoting the number of trials used in a binomial process for the points. Defaults to \code{NULL}.
+#' @param marktrialname Name of column in data denoting the number of trials used in a binomial process for the points. Defaults to \code{NULL}.
 #' @param coords Vector of the names of the coordinates used in datasets. Defaults to \code{c('X','Y')} (For now should be standardized).
 #' @param proj Projection to use if data is not a projection. Defaults to utm (hopefully).
 #' @param marks Should the model be a marked point process. Defaults to \code{FALSE}.
 #' @param inclmarks. A vector of which marks should be included in the model. Defaults to \code{NULL}.
 #' @param markfamily Assumed distribution of the marks. May be either a single character string or a named list/vector of each mark's distribution in the form: <mark name> = <distribution family>. Defaults to \code{"gaussian"}.
-#' @param timevariable Name of the time variable used in the model. Defaults to /code{NULL}.
+#' @param speciesname Name of the species name variable used in the model. Defaults to \code{NULL}.
 #' @param ips Integration points. Defaults to \code{NULL}.
 #' @param mesh An inla.mesh object. Defaults to \code{NULL}.
 #' @param meshpars List of mesh parameters. Requires the following items: "cut.off", "max.edge" and "offset". Defaults to \code{NULL}.
 #' @param boundary Polygon of boundary for region, of class Polygon. If \code{NULL}, draws a boundary around the points.
+#' 
+#' @export
 
 
 organize_data <- function(..., poresp = NULL, paresp = NULL,
-                          trialname = NULL, coords = NULL, proj = NULL,
+                          trialname = NULL, marktrialname = NULL,
+                          coords = NULL, proj = NULL,
                           marks = FALSE, inclmarks = NULL,
-                          markfamily = 'gaussian', timevariable = NULL,
-                          ips = NULL, mesh = NULL,
-                          meshpars = NULL, boundary = NULL) {
+                          markfamily = 'gaussian',speciesname = NULL,
+                          ips = NULL, mesh = NULL, meshpars = NULL,
+                          boundary = NULL) {
   
   
   if (is.null(poresp) | is.null(paresp)) stop('Both poresp and paresp must be non-null.')
@@ -131,7 +135,6 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
           
         }
         
-        
       }
     else {
       
@@ -154,19 +157,19 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
     
   })
   
-  if (!is.null(timevariable)) {
+  if (!is.null(speciesname)) {
     
-    all_time <- sapply(data_points, function(dat) {
+    all_species <- sapply(data_points, function(dat) {
       
-      timevariable%in%names(dat@data)
+      speciesname%in%names(dat@data)
       
     })
     
-    if (!all(all_time)) stop('All datasets are required to have the temporal variable included.')
+    if (!all(all_species)) stop('All datasets are required to have the species name variable included.')
     
     data_points <- lapply(data_points, function(dat) {
       
-      dat@data[,timevariable] <- factor(dat@data[,timevariable])
+      dat@data[,speciesname] <- factor(dat@data[,speciesname])
       dat
       
     })
@@ -187,7 +190,8 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
       
       else {
         
-        names = names(data_points[[i]])[!names(data_points[[i]])%in%c(poresp,paresp,coords,trialname,timevariable)]
+        names = names(data_points[[i]])[!names(data_points[[i]])%in%c(poresp, paresp, coords, trialname,
+                                                                      speciesname, marktrialname)]
         
         if (!is.null(inclmarks)) names <- names[names%in%inclmarks]      
         
@@ -227,6 +231,7 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
               attr(mark,'weights') <- weights$weight[as.numeric(mark@data[,names[j]])]
               mark@data[,'placeholder_for_factor'] <- NULL
               mark@data[,'mark_response_weights'] <- NULL
+              attr(mark, 'Ntrials') <- rep(1,nrow(mark@coords))
               attr(mark,'response') <- paste0(names[j],'_response')
               attr(mark,'family') <- 'poisson'
               attr(mark,'data_type') <- 'Multinomial mark'
@@ -257,7 +262,7 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
                     attr(mark,'data_type') <- paste0(capital_markfamily,' mark')
                     
                   }
-                  else {
+                  else {  
                     
                     warning(names[j], ' has not been assigned a family. Will assign it "gaussian"')  
                     attr(mark,'family') <- 'gaussian'
@@ -277,6 +282,25 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
                 }
                 
                 attr(mark,'response') <- names[j]
+                
+                if (!is.null(marktrialname)) {
+                  
+                  if (attributes(mark)$family == 'binomial') {
+                    
+                    if (marktrialname%in%names(data_points[[i]]@data)) {
+                      
+                      attr(mark, 'Ntrials') <- data.frame(data_points[[i]]@data[,marktrialname])[,1]
+                      
+                    }
+                    else attr(mark, 'Ntrials') <- rep(1, nrow(mark@data))
+                    
+                  }
+                  else attr(mark, 'Ntrials') <- rep(1, nrow(mark@data))
+                  
+                }
+                else attr(mark, 'Ntrials') <- rep(1, nrow(mark@data))
+                
+                
                 attr(mark,'mark_name') <- names[j]
                 attr(mark,'phi') <- NULL
                 attr(mark, 'weights') <- rep(1,nrow(mark@coords))
@@ -285,7 +309,6 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
                 names(data_marks)[[index]] <- paste0(names(data_points)[i],'_',names[j])
                 
               }
-            
             else FALSE
             
           }
@@ -293,7 +316,6 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
       }
       
     }
-    
     data_marks[sapply(data_marks,is.logical)] <- NULL
     
     if (length(data_marks) == 0) stop("Either marks have been set to TRUE and no datasets contain marks, or marks to include only contains marks not present in any dataset.")
@@ -334,7 +356,6 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
           dat
           
         }
-        
         else dat
         
       })
@@ -406,6 +427,8 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
                          max.edge=meshpars$max.edge, 
                          offset=meshpars$offset)
     
+    mesh$crs <- proj
+    
   }
   
   if (is.null(ips)) {
@@ -464,11 +487,12 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
   attr(object,'Mark_dataset') <- sapply(data_marks, function(dat) attributes(dat)$dataset)
   attr(object,'Mark_weight') <- lapply(data_marks, function(dat) attributes(dat)$weight)
   attr(object,'Mark_response') <- response_marks
+  attr(object, 'Mark_trials') <- lapply(data_marks, function(dat) attributes(dat)$Ntrials)
   attr(object, 'Multinom_incl') <- multinom_incl
   attr(object, 'Multinom_vars') <- multinom_vars
   attr(object, 'Sources_of_information') <- unname(c(data_names, sapply(data_marks, function(dat) attributes(dat)$dataset)))
   
-  attr(object, 'Timevariable') <- timevariable  
+  attr(object, 'Species') <- speciesname
   
   return(object)
   
