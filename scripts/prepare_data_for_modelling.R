@@ -7,8 +7,8 @@ pre_data_NI <- read.csv("data/all_NI_data.csv", row.names = NULL)
 
 pre_data_NI <- pre_data_NI %>% 
   rename(Longitude = X, Latitude = Y)
-ireland <- st_read("data/ireland_ITM.shp") %>% 
-  st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))  # IRENET in km
+
+ireland <- st_read("data/ireland_ITM.shp") 
 
 # all_data <- pre_data  
 all_data <- bind_rows(pre_data, pre_data_NI)
@@ -16,8 +16,7 @@ all_data <- bind_rows(pre_data, pre_data_NI)
 sel_data <- all_data %>% 
   dplyr::select(County, Year, Species, Deer.Presence, Y = Latitude, X = Longitude, Source) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
-  st_set_crs(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>%  # IRENET in m
-  st_transform(ITM_km)  # IRENET in km
+  st_set_crs(st_crs(ireland))  # IRENET 
 
 PA_data <- sel_data %>% 
   filter(Source %in% c("Coillte_density", "Coillte_desk")) %>% 
@@ -50,15 +49,16 @@ write.csv(PO_data, file = "data/PO_webSurvey_data_RD.csv", row.names = F)
 ##------------------------##
 
 # We're only going to load the data that, a priori, we want to enter in the model
-env_data <- stack("large_env_data/covar_subset.grd")
+env_data <- stack("large_env_data/covar_subset_ITM.grd")
 plot(env_data)
 
 
 # Previsualisation with Presence/Absence data
 PA_data_sf <- PA_data %>% 
-  st_as_sf(coords = c("X", "Y"), crs = ITM_km) %>% 
-  st_transform(env_data@crs)
+  st_as_sf(coords = c("X", "Y"), crs = st_crs(ireland)) 
 
+crs(PA_data_sf)
+crs(env_data)
 PA_covars <- extract(env_data, PA_data_sf)  
 
 PA_covars <- as.data.frame(cbind(PA = PA_data$PA, PA_covars))
@@ -120,12 +120,13 @@ hfi_plot <- ggplot(PA_covars) +
   NULL
 
 lcv_plot <- PA_covars %>%
-  mutate(landCover2 = recode(landCover, "1" = "Built area", "4" = "Freshwater related", "5" = "Other vegetation",
-                             "6" = "Agricultura land", "7" = "Pastures", "8" = "Grassland", "9" = "Transitional",
-                             "10" = "Coniferous forest", "11" = "Mixed forest", "12" = "Broadleaf forest")) %>%
+  mutate(landCover2 = recode(landCover, "1" = "Built area", "2" = "Saltwater related", "3" = "No vegetation", 
+                             "4" = "Freshwater related", "5" = "Other vegetation", "6" = "Agricultura land", 
+                             "7" = "Pastures", "8" = "Grassland", "9" = "Transitional", "10" = "Coniferous forest", 
+                             "11" = "Mixed forest", "12" = "Broadleaf forest")) %>%
   ggplot + 
   geom_bar(aes(fill = landCover2, x = factor(PA)), position = "fill") + 
-  scale_fill_tableau() + 
+  scale_fill_viridis_d() + 
   labs(y = "Proportion", x = "", fill = "Land Cover") +
   theme_bw()
 
@@ -133,19 +134,38 @@ lcv_plot <- PA_covars %>%
 plot_grid(tcd_plot, ele_plot, slo_plot, hfi_plot, lcv_plot)
 ggsave("covar_eval.png", scale = 2)
 
+
+
+# Previsualisation with PO data
 PO_data_sf <- PO_data %>% 
-  st_as_sf(coords = c("X", "Y"), crs = ITM_km) %>% 
-  st_transform(env_data@crs)
+  st_as_sf(coords = c("X", "Y"), crs = st_crs(ireland)) 
 
-PO_data_sp <- SpatialPoints(st_coordinates(PO_data_sf), proj4string = env_data@crs)
+PO_win <- as.owin(st_bbox(ireland))
+PO_ppp <- ppp(x = st_coordinates(PO_data_sf)[,1], y = st_coordinates(PO_data_sf)[,2], 
+              window = PO_win)
+PO_dens <- density(PO_ppp, sigma = bw.diggle, eps = c(500, 500))
+PO_raster <- raster(PO_dens)
+PO_raster@crs <- CRS("+init=epsg:2157")
+PO_raster <- crop(PO_raster, y = extent(env_data))
+PO_raster2 <- mask(PO_raster, ireland)
 
-PO_raster <- rasterize(PO_data_sp, env_data$landCover, fun='count', na.rm = T)
+RL <- list(env_data$landCover, env_data$tree_cover_density, env_data$elevation, env_data$slope, env_data$human_footprint_index, PO_raster2)
+devtools::source_url("https://github.com/VirginiaMorera/Useful-little-functions/blob/master/list_to_stack.R?raw=TRUE")
+new_stack <- list_to_stack(RL, new_res = res(env_data), dest_crs = env_data@crs, turn_0_to_NA = F)
 
-plot(PO_raster)
+plot(new_stack)
+names(new_stack)[6] <- "Deer_per_cell"
 
-env_data2 <- stack(env_data, PO_raster)
-
-names(env_data2)[6] <- "Deer_per_cell"
-
-cor <-layerStats(env_data2, 'pearson', na.rm = T)
+cor <-layerStats(new_stack, 'pearson', na.rm = T)
 ggcorrplot(cor$`pearson correlation coefficient`, method = "circle", show.diag = F, type = "upper", lab = T) 
+
+##--------------------------------##
+#### PAckage data for modelling ####
+##--------------------------------##
+
+source("scripts/organise_data.R")
+in_bound <- readRDS("data/inner_boundary.RDS")
+mesh0 <- readRDS("data/mesh.RDS")
+
+data_for_model <- organize_data(PA_data, PO_data, poresp = "PO", paresp = "PA", coords = c("X", "Y"), proj = CRS("+init=epsg:2157"),
+                                marks = F,  mesh = mesh0, boundary = in_bound)
