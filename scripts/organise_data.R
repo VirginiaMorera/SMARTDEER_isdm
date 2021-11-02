@@ -114,7 +114,7 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
                                           data = data.frame(data[,!data_vars%in%coords]),
                                           proj4string = proj)
         
-        if (ncol(dat@dat) == 1) names(dat@data) = poresp
+        if (ncol(dat@data) == 1) names(dat@data) = poresp
         
         if (any(dat@data[,poresp] > 1)) {
           
@@ -467,12 +467,13 @@ organize_data <- function(..., poresp = NULL, paresp = NULL,
     
   }
   
-  object <- new('bru_sdm_data',
-                PO_data = PO_data,
-                PA_data = PA_data,
-                Mark_data = data_marks,
-                ips = ips,
-                mesh = mesh)
+  object <- new(
+    Class = 'bru_sdm_data',
+    PO_data = PO_data,
+    PA_data = PA_data,
+    Mark_data = data_marks,
+    ips = ips,
+    mesh = mesh)
   
   attr(object,'Points_response') <- c(poresp, paresp)
   attr(object,'Points_family') <- sapply(data_points, function(dat) attributes(dat)$family)

@@ -1,7 +1,7 @@
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
-covar_stack <- readRDS("data/covar_stack.RDS")
-spatialcovariates <- as(covar_stack$HFI_crop, "SpatialPixelsDataFrame")
+covar_stack <- stack("large_env_data/covar_subset.gri")
+spatialcovariates <- as(covar_stack, "SpatialPixelsDataFrame")
 source("scripts/params_bru_sdm.R")
 source("scripts/bru_sdm.R")
 
