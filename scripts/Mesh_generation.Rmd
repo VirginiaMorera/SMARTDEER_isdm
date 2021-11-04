@@ -9,12 +9,6 @@ output:
 
 ```{r setup, include = FALSE, message = FALSE}
 knitr::opts_knit$set(echo = TRUE)
-
-# install.packages 
-library(sf)
-library(rgeos)
-library(tidyverse)
-library(INLA)
 ```
 
 
@@ -61,22 +55,18 @@ ggplot(boundary) +
   geom_sf(data = boundary2, col = "red", fill = NA) +
   geom_sf(fill =NA) + 
   geom_sf(data = ireland, fill = NA, col = "darkgray") + 
-  geom_sf(data = all_data_sf, aes(col = Deer.Presence)) + 
+  # geom_sf(data = all_data_sf, aes(col = Deer.Presence)) + 
   theme_bw()          
 ```
 
 ## Creation of mesh
 
-### Transform so units are in km no in m
+### Transform to sp objects
 
 ```{r transform, echo = T, message=FALSE, warning = FALSE}
-boundary_sp <- boundary %>% 
-  st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
-  as_Spatial()
+boundary_sp <- as_Spatial(boundary)
 
-boundary2_sp <- boundary2 %>% 
-  st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
-  as_Spatial()
+boundary2_sp <- as_Spatial(boundary2)
 
 all_data_sp <- all_data_sf %>% 
   st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs")) %>% 
@@ -101,7 +91,7 @@ boundary_out <- inla.sp2segment(boundary2_sp)
 - The edge of the triangles in the outer mesh is 50km 
 
 ```{r creating mesh, echo = T, message=FALSE, warning = FALSE}
-mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), max.edge = c(20, 50), cutoff = 10, crs = boundary_sp@proj4string)
+mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), max.edge = c(20000, 50000), cutoff = 10000, crs = boundary_sp@proj4string)
 ```
 
 ### Plot mesh
@@ -109,7 +99,7 @@ mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), max.edge = c(20
 And add points to check all of them are within the inner boundary
 ```{r plotting mesh, echo = T, message=FALSE, warning = FALSE, fig.width = 7*0.8, fig.height = 10*0.7}
 plot(mesh)
-plot(all_data_sp, add = T, col = "red")
+# plot(all_data_sp, add = T, col = "red")
 plot(boundary_sp, border = "green", add = T)
 plot(boundary2_sp, border = "orange", add = T)
 ```

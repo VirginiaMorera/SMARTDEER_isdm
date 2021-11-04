@@ -167,8 +167,10 @@ ggsave("sikaDeerCorr.png")
 # Functions from the package inlabruSDMs by the wonderful Philip Mostert
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
+PO_data <- read.csv("data/PO_webSurvey_data_RD.csv", row.names = NULL)
+PA_data <- read.csv("data/PA_data_RD.csv", row.names = NULL)
 
-data_for_model <- organize_data(PA_data, PO_data, poresp = "PO", paresp = "PA", coords = c("X", "Y"), proj = CRS("+init=epsg:2157"),
+RD_data_for_model <- organize_data(PA_data, PO_data, poresp = "PO", paresp = "PA", coords = c("X", "Y"), proj = CRS("+init=epsg:2157"),
                                 marks = F,  mesh = mesh0, boundary = in_bound)
 
-saveRDS(data_for_model, file = "data_for_model.RDS")
+saveRDS(RD_data_for_model, file = "data/RD_data_for_model.RDS")
