@@ -52,14 +52,11 @@ write.csv(PO_data, file = "data/PO_webSurvey_data_RD.csv", row.names = F)
 env_data <- stack("large_env_data/covar_subset_ITM.grd")
 plot(env_data)
 
-
 # Previsualisation with Presence/Absence data
 PA_data_sf <- PA_data %>% 
   st_as_sf(coords = c("X", "Y"), crs = st_crs(ireland)) 
 
-crs(PA_data_sf)
-crs(env_data)
-PA_covars <- extract(env_data, PA_data_sf)  
+PA_covars <- raster::extract(env_data, PA_data_sf)  
 
 PA_covars <- as.data.frame(cbind(PA = PA_data$PA, PA_covars))
 
@@ -132,7 +129,7 @@ lcv_plot <- PA_covars %>%
 
 
 plot_grid(tcd_plot, ele_plot, slo_plot, hfi_plot, lcv_plot)
-ggsave("covar_eval.png", scale = 2)
+ggsave("fSikaDeer_covar_eval.png", scale = 2)
 
 
 
@@ -146,26 +143,32 @@ PO_ppp <- ppp(x = st_coordinates(PO_data_sf)[,1], y = st_coordinates(PO_data_sf)
 PO_dens <- density(PO_ppp, sigma = bw.diggle, eps = c(500, 500))
 PO_raster <- raster(PO_dens)
 PO_raster@crs <- CRS("+init=epsg:2157")
-PO_raster <- crop(PO_raster, y = extent(env_data))
-PO_raster2 <- mask(PO_raster, ireland)
+PO_raster <- raster::crop(PO_raster, y = extent(env_data))
+PO_raster2 <- raster::mask(PO_raster, ireland)
 
 RL <- list(env_data$landCover, env_data$tree_cover_density, env_data$elevation, env_data$slope, env_data$human_footprint_index, PO_raster2)
-devtools::source_url("https://github.com/VirginiaMorera/Useful-little-functions/blob/master/list_to_stack.R?raw=TRUE")
-new_stack <- list_to_stack(RL, new_res = res(env_data), dest_crs = env_data@crs, turn_0_to_NA = F)
+# devtools::source_url("https://github.com/VirginiaMorera/Useful-little-functions/blob/master/list_to_stack.R?raw=TRUE")
+
+new_stack <- list_to_stack(RL, new_res = raster::res(env_data), dest_crs = env_data@crs, turn_0_to_NA = F)
 
 plot(new_stack)
-names(new_stack)[6] <- "Deer_per_cell"
+names(new_stack)[6] <- "Sika_deer_per_cell"
 
 cor <-layerStats(new_stack, 'pearson', na.rm = T)
 ggcorrplot(cor$`pearson correlation coefficient`, method = "circle", show.diag = F, type = "upper", lab = T) 
+ggsave("sikaDeerCorr.png")
+
+
 
 ##--------------------------------##
-#### PAckage data for modelling ####
+#### Package data for modelling ####
 ##--------------------------------##
 
-source("scripts/organise_data.R")
+# Functions from the package inlabruSDMs by the wonderful Philip Mostert
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
 
 data_for_model <- organize_data(PA_data, PO_data, poresp = "PO", paresp = "PA", coords = c("X", "Y"), proj = CRS("+init=epsg:2157"),
                                 marks = F,  mesh = mesh0, boundary = in_bound)
+
+saveRDS(data_for_model, file = "data_for_model.RDS")
