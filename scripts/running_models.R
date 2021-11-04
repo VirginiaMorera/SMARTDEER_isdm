@@ -1,56 +1,19 @@
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
-covar_stack <- stack("large_env_data/covar_subset.gri")
+covar_stack <- stack("large_env_data/covar_subset_ITM.gri")
 spatialcovariates <- as(covar_stack, "SpatialPixelsDataFrame")
-source("scripts/params_bru_sdm.R")
-source("scripts/bru_sdm.R")
+red_deer_data <- readRDS("data/data_for_model.RDS")
 
-PO_data <- read.csv("data/PO_data_RD.csv", row.names = NULL)
-PA_data <- read.csv("data/PA_data_RD.csv", row.names = NULL)
-
-red_deer_data <- organize_data(PO_data, PA_data, poresp = "PO", paresp = "PA",
-                               trialname = NULL, coords = c("X", "Y"), proj = ITM,
-                               marks = FALSE, inclmarks = NULL,
-                               markfamily = 'gaussian', timevariable = NULL,
-                               ips = NULL, mesh = mesh0,
-                               meshpars = NULL, boundary = in_bound)
+spdemodel_pc = INLA::inla.spde2.pcmatern(mesh = mesh0, alpha = 3/2,  ### mesh and smoothness parameter
+                                         prior.range = c(20, 0.01), ### P(practic.range < 20) Very small probability the range is smaller than 20 (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior) 
+                                         prior.sigma = c(0.2, 0.01)) ### P(sigma > 0.2) Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 0.2
 
 
 
-mdl1 <- bru_sdm(PO_data, PA_data, spatialcovariates = NULL, marks = FALSE, markfamily = 'gaussian',
-                inclmarks = NULL, coords = c('X','Y'), poresp = "PO", paresp = "PA",
-                trialname = NULL, inclcoords = FALSE, mesh = mesh, meshpars = NULL,
-                spdemodel = NULL, ips = NULL, bdry = bdry,
-                proj = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"),
-                predictions = FALSE,
-                residuals = NULL, intercept = FALSE, indivintercepts = TRUE,
-                pointsspatial = TRUE, marksspatial = FALSE, options = list(),
-                poformula = NULL, paformula = NULL, tol = 0)
+mdl1 <- bru_sdm(data = red_deer_data, 
+                spatialcovariates, 
+                covariatestoinclude = c("tree_cover_density", "elevation", "slope", "human_footprint_index", "landCover"),
+                spdemodel = spdemodel_pc,
+                sharedspatial = T)
 
-
-mdl2 <- bru_sdm(PO_data, PA_data, spatialcovariates = NULL, marks = FALSE, markfamily = 'gaussian',
-                inclmarks = NULL, coords = c('X','Y'), poresp = "PO", paresp = "PA",
-                trialname = NULL, inclcoords = FALSE, mesh = mesh, meshpars = NULL,
-                spdemodel = spdemodel_pc, ips = NULL, bdry = bdry,
-                proj = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"),
-                predictions = FALSE,
-                residuals = NULL, intercept = FALSE, indivintercepts = TRUE,
-                pointsspatial = TRUE, marksspatial = FALSE, options = list(),
-                poformula = NULL, paformula = NULL, tol = 0)
-
-
-
-source("scripts/outputs.R")
-summary.bru_sdm(mdl1)
-summary.bru_sdm(mdl2)
-
-
-mdl3 <- bru_sdm(PO_data_sub, PA_data_sub, spatialcovariates = spatialcovariates, marks = FALSE, markfamily = 'gaussian',
-                inclmarks = NULL, coords = c('X','Y'), poresp = "PO", paresp = "PA",
-                trialname = NULL, inclcoords = FALSE, mesh = mesh, meshpars = NULL,
-                spdemodel = spdemodel_pc, ips = NULL, bdry = bdry,
-                proj = CRS("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"),
-                predictions = FALSE,
-                residuals = NULL, intercept = FALSE, indivintercepts = TRUE,
-                pointsspatial = TRUE, marksspatial = FALSE, options = list(),
-                poformula = NULL, paformula = NULL, tol = 0.9)
+predict(mdl1)
