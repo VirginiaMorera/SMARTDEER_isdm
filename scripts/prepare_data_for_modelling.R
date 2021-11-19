@@ -6,7 +6,8 @@ pre_data <- read.csv("data/all_data.csv", row.names = NULL)
 pre_data_NI <- read.csv("data/all_NI_data.csv", row.names = NULL)
 
 pre_data_NI <- pre_data_NI %>% 
-  rename(Longitude = X, Latitude = Y)
+  rename(Longitude = X, Latitude = Y) %>% 
+  mutate(Type = "PO")
 
 ireland <- st_read("data/ireland_ITM.shp") 
 
@@ -14,34 +15,29 @@ ireland <- st_read("data/ireland_ITM.shp")
 all_data <- bind_rows(pre_data, pre_data_NI)
 
 sel_data <- all_data %>% 
-  dplyr::select(County, Year, Species, Deer.Presence, Y = Latitude, X = Longitude, Source) %>% 
+  dplyr::select(County, Year, Species, Deer.Presence, Y = Latitude, X = Longitude, Source, Type) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs(ireland))  # IRENET 
 
 PA_data <- sel_data %>% 
-  filter(Source %in% c("Coillte_density", "Coillte_desk")) %>% 
-  filter(Species == "RedDeer") %>% 
-  dplyr::select(-Source)  %>% 
+  filter(Type  == "PA") %>% 
   dplyr::mutate(X = sf::st_coordinates(.)[,1],
                 Y = sf::st_coordinates(.)[,2], 
                 Deer.Presence = if_else(Deer.Presence == "Yes", 1, 0)) %>% 
   rename(PA = Deer.Presence) %>% 
   st_set_geometry(NULL)
 
-write.csv(PA_data, file = "data/PA_data_RD.csv", row.names = F)
+write.csv(PA_data, file = "data/PA_data_all.csv", row.names = F)
 
 PO_data <- sel_data %>% 
-  # filter(Source %in% c("NBDC", "webSurvey")) %>%
-  filter(Source == "webSurvey") %>%
-  filter(Species == "RedDeer") %>% 
-  dplyr::select(-Source) %>% 
+  filter(Type == "PO") %>%
   dplyr::mutate(X = sf::st_coordinates(.)[,1],
                 Y = sf::st_coordinates(.)[,2], 
                 Deer.Presence = if_else(Deer.Presence == "Yes", 1, 0)) %>% 
   rename(PO = Deer.Presence) %>% 
   st_set_geometry(NULL)
 
-write.csv(PO_data, file = "data/PO_webSurvey_data_RD.csv", row.names = F)
+write.csv(PO_data, file = "data/PO_data_all.csv", row.names = F)
 
 
 ##------------------------##
@@ -58,7 +54,17 @@ PA_data_sf <- PA_data %>%
 
 PA_covars <- raster::extract(env_data, PA_data_sf)  
 
-PA_covars <- as.data.frame(cbind(PA = PA_data$PA, PA_covars))
+PA_covars <- as.data.frame(cbind(PA = PA_data$PA, PA_covars)) 
+PA_covars <- PA_covars %>% 
+  mutate(landCover2 = recode(landCover, "1" = "Built area", "2" = "Saltwater related", "3" = "No vegetation", 
+                             "4" = "Freshwater related", "5" = "Other vegetation", "6" = "Agricultural land", 
+                             "7" = "Pastures", "8" = "Grassland", "9" = "Transitional", "10" = "Coniferous forest", 
+                             "11" = "Mixed forest", "12" = "Broadleaf forest")) %>%
+  mutate(landCover2 = factor(landCover2, levels = c("Built area", "Saltwater related", "No vegetation", 
+                                                    "Freshwater related", "Other vegetation", "Agricultural land", 
+                                                    "Pastures", "Grassland", "Transitional", "Coniferous forest", 
+                                                    "Mixed forest", "Broadleaf forest")))
+  
 
 tcd_plot <- ggplot(PA_covars) + 
   geom_jitter(aes(x = factor(PA), y = tree_cover_density, col = factor(PA)), 
@@ -117,10 +123,6 @@ hfi_plot <- ggplot(PA_covars) +
   NULL
 
 lcv_plot <- PA_covars %>%
-  mutate(landCover2 = recode(landCover, "1" = "Built area", "2" = "Saltwater related", "3" = "No vegetation", 
-                             "4" = "Freshwater related", "5" = "Other vegetation", "6" = "Agricultura land", 
-                             "7" = "Pastures", "8" = "Grassland", "9" = "Transitional", "10" = "Coniferous forest", 
-                             "11" = "Mixed forest", "12" = "Broadleaf forest")) %>%
   ggplot + 
   geom_bar(aes(fill = landCover2, x = factor(PA)), position = "fill") + 
   scale_fill_viridis_d() + 
@@ -129,8 +131,7 @@ lcv_plot <- PA_covars %>%
 
 
 plot_grid(tcd_plot, ele_plot, slo_plot, hfi_plot, lcv_plot)
-ggsave("fSikaDeer_covar_eval.png", scale = 2)
-
+ggsave("outputs/fallowDeer_covar_eval.png", scale = 2)
 
 
 # Previsualisation with PO data
@@ -145,18 +146,19 @@ PO_raster <- raster(PO_dens)
 PO_raster@crs <- CRS("+init=epsg:2157")
 PO_raster <- raster::crop(PO_raster, y = extent(env_data))
 PO_raster2 <- raster::mask(PO_raster, ireland)
+plot(PO_raster2)
+PO_raster2[PO_raster2 < 0.0000001] <- NA
 
 RL <- list(env_data$landCover, env_data$tree_cover_density, env_data$elevation, env_data$slope, env_data$human_footprint_index, PO_raster2)
 # devtools::source_url("https://github.com/VirginiaMorera/Useful-little-functions/blob/master/list_to_stack.R?raw=TRUE")
 
-new_stack <- list_to_stack(RL, new_res = raster::res(env_data), dest_crs = env_data@crs, turn_0_to_NA = F)
+new_stack <- list_to_stack(RL, new_res = raster::res(env_data), dest_crs = env_data@crs, turn_0_to_NA = T)
 
 plot(new_stack)
-names(new_stack)[6] <- "Sika_deer_per_cell"
-
+names(new_stack)[6] <- "Fallow_deer_per_cell"
 cor <-layerStats(new_stack, 'pearson', na.rm = T)
 ggcorrplot(cor$`pearson correlation coefficient`, method = "circle", show.diag = F, type = "upper", lab = T) 
-ggsave("sikaDeerCorr.png")
+ggsave("outputs/fallowDeerCorr.png")
 
 
 

@@ -1,4 +1,5 @@
 # install all necessary packages # 
+devtools::install_github('PhilipMostert/inlabruSDMs', force = T)
 library(tidyverse)
 library(sf)
 library(sp)
