@@ -1,5 +1,5 @@
 # install all necessary packages # 
-devtools::install_github('PhilipMostert/inlabruSDMs', force = T)
+# devtools::install_github('PhilipMostert/inlabruSDMs', force = T)
 library(tidyverse)
 library(sf)
 library(sp)
@@ -12,6 +12,9 @@ library(ggthemes)
 library(cowplot)
 library(spatstat)
 library(inlabruSDMs)
+library(rasterVis)
+
+
 '%!in%' <- function(x,y)!('%in%'(x,y))
 
 
