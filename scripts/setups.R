@@ -13,7 +13,7 @@ library(cowplot)
 library(spatstat)
 library(inlabruSDMs)
 library(rasterVis)
-
+library(viridis)
 
 '%!in%' <- function(x,y)!('%in%'(x,y))
 
