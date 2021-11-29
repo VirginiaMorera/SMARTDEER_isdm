@@ -19,6 +19,13 @@ sel_data <- all_data %>%
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs(ireland))  # IRENET 
 
+sel_data %>% 
+  filter(Type == "PA" & Species == "RedDeer") %>% 
+  ggplot + 
+  geom_sf(aes(col = Deer.Presence), alpha = 0.5) + 
+  geom_sf(data = ireland, fill = NA, col = "darkgray") + 
+  theme_bw()
+
 PA_data <- sel_data %>% 
   filter(Type  == "PA") %>% 
   dplyr::mutate(X = sf::st_coordinates(.)[,1],

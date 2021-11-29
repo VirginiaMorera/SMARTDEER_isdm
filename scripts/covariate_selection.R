@@ -16,7 +16,23 @@ rat$landcover <- c("Builtup", "Saltwater_related", "No_vegetation", "Freshwater_
 levels(r) <- rat
 levelplot(r)
 
-subs <- subset(covars, c("landCover", "tree_cover_density", "elevation", "slope", "human_footprint_index"))
+
+# merge dist to forest and dist to forest edge
+
+dist_to_fEdge <- (-1)*covars$dist_to_fEdge
+dist_to_fEdge[is.na(dist_to_fEdge)] <- 0
+
+dist_to_forest <- covars$dist_to_forest
+dist_to_forest[is.na(dist_to_forest)] <- 0
+
+forest_distances <- sum(dist_to_forest, dist_to_fEdge)
+
+forest_distances <- mask(forest_distances, ireland_sp)
+plot(forest_distances)
+covars$forest_distances <- forest_distances
+
+subs <- subset(covars, c("landCover", "tree_cover_density", "elevation", "slope", "human_footprint_index", "forest_distances", 
+                         "small_woody_features"))
 
 plot(subs)
 
@@ -32,8 +48,11 @@ env_data_ITM$elevation <- projectRaster(subs$elevation, crs = CRS("+init=epsg:21
 env_data_ITM$slope <- projectRaster(subs$slope, crs = CRS("+init=epsg:2157"), method = "bilinear")
 env_data_ITM$human_footprint_index <- projectRaster(subs$human_footprint_index, crs = CRS("+init=epsg:2157"), method = "bilinear")
 env_data_ITM$landCover <- projectRaster(subs$landCover, crs = CRS("+init=epsg:2157"), method = "ngb")
+env_data_ITM$forest_distances <- projectRaster(subs$forest_distances, crs = CRS("+init=epsg:2157"), method = "bilinear")
+env_data_ITM$small_woody_features <- projectRaster(subs$small_woody_features, crs = CRS("+init=epsg:2157"), method = "bilinear")
 
-writeRaster(env_data_ITM, filename = "large_env_data/covar_subset_ITM.grd", format = "raster")
+
+writeRaster(env_data_ITM, filename = "large_env_data/covar_subset_ITM.grd", format = "raster", overwrite = T)
 
 
 levelplot(r, col.regions = viridis(12), 
@@ -43,7 +62,7 @@ levelplot(r, col.regions = viridis(12),
   latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "black"))
 
 
-levelplot(covars$tree_cover_density, col.regions = viridis(100), 
+levelplot(covars$forest_distances, col.regions = viridis(100), 
           xlab = "Longitude", ylab = "Latitude", 
           # xlim = c(-22, -7), ylim = c(15, 33), 
           margin = FALSE, zscaleLog = FALSE, main = "Tree cover density") + 
