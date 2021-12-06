@@ -2,25 +2,17 @@
 #### Deer data ####
 ##---------------##
 
-pre_data <- read.csv("data/all_data.csv", row.names = NULL)
-pre_data_NI <- read.csv("data/all_NI_data.csv", row.names = NULL)
-
-pre_data_NI <- pre_data_NI %>% 
-  rename(Longitude = X, Latitude = Y) %>% 
-  mutate(Type = "PO")
+all_data <- read.csv("data/all_data.csv", row.names = NULL)
 
 ireland <- st_read("data/ireland_ITM.shp") 
 
-# all_data <- pre_data  
-all_data <- bind_rows(pre_data, pre_data_NI)
-
 sel_data <- all_data %>% 
-  dplyr::select(County, Year, Species, Deer.Presence, Y = Latitude, X = Longitude, Source, Type) %>% 
+  dplyr::select(County, Year, Species, Deer.Presence, Deer.Count, Y = Latitude, X = Longitude, Source, Type) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs(ireland))  # IRENET 
 
 sel_data %>% 
-  filter(Type == "PA" & Species == "RedDeer") %>% 
+  filter(Type == "PA") %>% 
   ggplot + 
   geom_sf(aes(col = Deer.Presence), alpha = 0.5) + 
   geom_sf(data = ireland, fill = NA, col = "darkgray") + 
@@ -32,6 +24,7 @@ PA_data <- sel_data %>%
                 Y = sf::st_coordinates(.)[,2], 
                 Deer.Presence = if_else(Deer.Presence == "Yes", 1, 0)) %>% 
   rename(PA = Deer.Presence) %>% 
+  dplyr::select(-Deer.Count) %>% 
   st_set_geometry(NULL)
 
 write.csv(PA_data, file = "data/PA_data_all.csv", row.names = F)
@@ -41,7 +34,8 @@ PO_data <- sel_data %>%
   dplyr::mutate(X = sf::st_coordinates(.)[,1],
                 Y = sf::st_coordinates(.)[,2], 
                 Deer.Presence = if_else(Deer.Presence == "Yes", 1, 0)) %>% 
-  rename(PO = Deer.Presence) %>% 
+  rename(PO = Deer.Presence, 
+         Count = Deer.Count) %>% 
   st_set_geometry(NULL)
 
 write.csv(PO_data, file = "data/PO_data_all.csv", row.names = F)
