@@ -22,13 +22,17 @@ all_data <- read.csv("data/all_data.csv", row.names = NULL)
 
 all_data_sf <- all_data %>% 
   st_as_sf(coords = c("Longitude", "Latitude")) %>% 
-  st_set_crs(st_crs(ireland))
+  st_set_crs(st_crs(ireland)) %>% 
+  st_transform(crs = projKM)
+
+ireland <- ireland %>% 
+  st_transform(crs = projKM)
 ```
 
 
 ### Simplify and buffer 
 
-- Simplify with a tolerance of 10 km (units are in m at these point) 
+- Simplify with a tolerance of 10 km 
 - Buffering 15 km from the coast to avoid having points on the edge
 
 ```{r inner boundary, echo = T, message=FALSE, warning = FALSE}
@@ -37,15 +41,15 @@ boundary <- ireland %>%
   group_by(Country) %>%
   summarise(geometry = sf::st_union(geometry)) %>%
   ungroup() %>% 
-  st_simplify(dTolerance = 10000) %>% 
-  st_buffer(dist = 15000)
+  st_simplify(dTolerance = 10) %>% 
+  st_buffer(dist = 15)
 ```
 
-- Buffer the inner boundary by 100 km more to create outer boundary
+- Buffer the inner boundary by 200 km more to create outer boundary
 
 ```{r outer boundary, echo = T, message=FALSE, warning = FALSE}
 boundary2 <- boundary %>% 
-  st_buffer(dist = 100000)
+  st_buffer(dist = 200)
 ```
 
 ### Plot to check what we've got
@@ -69,9 +73,11 @@ boundary_sp <- as_Spatial(boundary)
 boundary2_sp <- as_Spatial(boundary2)
 
 all_data_sp <- all_data_sf %>% 
-  st_transform(st_crs("+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")) %>% 
   as_Spatial()
 
+crs(boundary_sp)
+crs(boundary2_sp)
+crs(all_data_sp)
 ```
 
 ### Create boundary objects
@@ -82,6 +88,9 @@ all_data_sp <- all_data_sf %>%
 ```{r boundaries, echo = T, message=FALSE, warning = FALSE}
 boundary_in <- inla.sp2segment(boundary_sp)
 boundary_out <- inla.sp2segment(boundary2_sp)
+
+boundary_in$crs
+boundary_out$crs
 ```
 
 ### Create mesh
@@ -92,8 +101,12 @@ boundary_out <- inla.sp2segment(boundary2_sp)
 
 ```{r creating mesh, echo = T, message=FALSE, warning = FALSE}
 mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), 
-                     max.edge = c(20000, 50000), 
-                     cutoff = 10000, crs = boundary_sp@proj4string)
+                     max.edge = c(20, 100), 
+                     cutoff = 20, crs = boundary_out$crs)
+
+mesh$crs
+
+inla.identical.CRS(mesh$crs, boundary_sp@proj4string)
 ```
 
 
@@ -104,9 +117,17 @@ mesh <- inla.mesh.2d(boundary = list(boundary_in, boundary_out),
 - The edge of the triangles in the outer mesh is 80km (double the inner edge) 
 
 ```{r creating mesh, echo = T, message=FALSE, warning = FALSE}
+meshVLarge <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), 
+                          max.edge = c(60, 120), 
+                          cutoff = 20, crs = boundary_out$crs)
+
 meshLarge <- inla.mesh.2d(boundary = list(boundary_in, boundary_out), 
-                          max.edge = c(40000, 80000), 
-                          cutoff = 20000, crs = boundary_sp@proj4string)
+                          max.edge = c(40, 110), 
+                          cutoff = 20, crs = boundary_out$crs)
+
+inla.identical.CRS(meshLarge$crs, boundary_sp@proj4string)
+inla.identical.CRS(meshVLarge$crs, boundary_sp@proj4string)
+
 ```
 
 
@@ -119,9 +140,10 @@ plot(meshLarge)
 plot(boundary_sp, border = "green", add = T)
 plot(boundary2_sp, border = "orange", add = T)
 
-par(mfrow = c(1,2))
+par(mfrow = c(2,2))
 plot(mesh)
 plot(meshLarge)
+plot(meshVLarge)
 par(mfrow = c(1,1))
 ```
 
@@ -146,7 +168,7 @@ for (t in 1:tl) {
 
 #transform it in Spatial Points
 posTri = SpatialPoints(posTri)
-posTri@proj4string <- boundary_sp@proj4string
+posTri@proj4string <- boundary_out$crs
 
 normal = over(boundary_sp, posTri, returnList = T) # this are the polygons contained in the inner boundary, the "good" ones
 
@@ -169,6 +191,7 @@ plot(poly.barrier, col = "gray", add = T)
 saveRDS(poly.barrier, file = "data/barrier.RDS")
 saveRDS(mesh, file = "data/mesh.RDS")
 saveRDS(meshLarge, file = "data/meshLarge.RDS")
+saveRDS(meshVLarge, file = "data/meshVLarge.RDS")
 saveRDS(boundary2_sp, file = "data/outer_boundary.RDS")
 saveRDS(boundary_sp, file = "data/inner_boundary.RDS")
 ```
