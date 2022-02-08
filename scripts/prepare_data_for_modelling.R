@@ -6,16 +6,24 @@ all_data <- read.csv("data/all_data.csv", row.names = NULL)
 
 ireland <- st_read("data/ireland_ITM.shp") 
 
+ireland_km <- ireland %>% 
+  st_transform(projKM)
+
 sel_data <- all_data %>% 
   dplyr::select(County, Year, Species, Deer.Presence, Deer.Count, Y = Latitude, X = Longitude, Source, Type) %>% 
+  filter(X > 421874) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
-  st_set_crs(st_crs(ireland))  # IRENET 
+  st_set_crs(st_crs(ireland)) %>% 
+  st_transform(projKM) # IRENET 
 
 sel_data %>% 
-  filter(Type == "PA") %>% 
+  filter(Type == "PO") %>%
+  filter(Species == "FallowDeer") %>% 
+  filter(Source != "CameraTraps") %>%
   ggplot + 
-  geom_sf(aes(col = Deer.Presence), alpha = 0.5) + 
-  geom_sf(data = ireland, fill = NA, col = "darkgray") + 
+  geom_sf(aes(col = Source), alpha = 0.5) + 
+  geom_sf(data = ireland_km, fill = NA, col = "darkgray") + 
+  # facet_wrap(~Type) + 
   theme_bw()
 
 PA_data <- sel_data %>% 
@@ -161,19 +169,3 @@ cor <-layerStats(new_stack, 'pearson', na.rm = T)
 ggcorrplot(cor$`pearson correlation coefficient`, method = "circle", show.diag = F, type = "upper", lab = T) 
 ggsave("outputs/fallowDeerCorr.png")
 
-
-
-##--------------------------------##
-#### Package data for modelling ####
-##--------------------------------##
-
-# Functions from the package inlabruSDMs by the wonderful Philip Mostert
-in_bound <- readRDS("data/inner_boundary.RDS")
-mesh0 <- readRDS("data/mesh.RDS")
-PO_data <- read.csv("data/PO_webSurvey_data_RD.csv", row.names = NULL)
-PA_data <- read.csv("data/PA_data_RD.csv", row.names = NULL)
-
-RD_data_for_model <- organize_data(PA_data, PO_data, poresp = "PO", paresp = "PA", coords = c("X", "Y"), proj = CRS("+init=epsg:2157"),
-                                marks = F,  mesh = mesh0, boundary = in_bound)
-
-saveRDS(RD_data_for_model, file = "data/RD_data_for_model.RDS")

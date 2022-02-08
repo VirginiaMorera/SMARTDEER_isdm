@@ -67,3 +67,9 @@ levelplot(covars$forest_distances, col.regions = viridis(100),
           # xlim = c(-22, -7), ylim = c(15, 33), 
           margin = FALSE, zscaleLog = FALSE, main = "Tree cover density") + 
   latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "white"))
+
+
+covar_stack <- stack("large_env_data/covar_subset_ITM.gri")
+covar_stackKM <- projectRaster(covar_stack, crs = projKM)
+
+writeRaster(covar_stackKM, filename = "large_env_data/covar_subset_KM.grd", format = "raster", overwrite = T)
