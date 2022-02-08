@@ -40,4 +40,4 @@ vignettes/*.pdf
 #ignore folder with large data
 large_env_data/
 data/
-cluster_outputs/
+server_outputs/
