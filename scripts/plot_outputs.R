@@ -137,7 +137,7 @@ spde_PA <- stack(raster(SD_spde_PA['mean']), raster(SD_spde_PA['sd']))
 
 # Plot 
 
-plotlayer <- pred_resp
+plotlayer <- pred_lin
 
 nl <- nlayers(plotlayer)
 m <- matrix(1:nl, ncol = 2)
