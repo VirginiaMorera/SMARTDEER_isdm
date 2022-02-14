@@ -1,3 +1,4 @@
+rm(list = ls())
 devtools::install_github('PhilipMostert/inlabruSDMs', ref = "main")
 library(inlabruSDMs)
 library(raster)
@@ -53,12 +54,12 @@ SD_data_for_model <- organize_data(PA_data_sel, PO_data_sel,
 
 
 SD_spdemodel_PO = INLA::inla.spde2.pcmatern(mesh = sel_mesh, alpha = 3/2,  ### mesh and smoothness parameter
-                                            prior.range = c(200, 0.05), ### P(range < 40km) = 0.05 Very small probability the range is smaller than 40 (triangle edge size) (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior)
-                                            prior.sigma = c(1.5, 0.05)) ### P(sigma > 2) = 0.05 Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 2
+                                            prior.range = c(40, 0.05), ### P(range < 40km) = 0.05 Very small probability the range is smaller than 40 (triangle edge size) (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior)
+                                            prior.sigma = c(10, 0.05)) ### P(sigma > 2) = 0.05 Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 2
 
 SD_spdemodel_PA = INLA::inla.spde2.pcmatern(mesh = sel_mesh, alpha = 3/2,  ### mesh and smoothness parameter
-                                            prior.range = c(200, 0.05), ### P(range < 40km) = 0.05 Very small probability the range is smaller than 40 (triangle edge size) (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior)
-                                            prior.sigma = c(1, 0.05)) ### P(sigma > 2) = 0.05 Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 2
+                                            prior.range = c(100, 0.05), ### P(range < 40km) = 0.05 Very small probability the range is smaller than 40 (triangle edge size) (with high likelihood the range is between 20 (res of the model) and infinity i.e. flat prior)
+                                            prior.sigma = c(6, 0.05)) ### P(sigma > 2) = 0.05 Very small probability that sigma is larger than 0.2. Sigma is most likely between 0 and 2
 
 
 mdl_SD <- bru_sdm(data = SD_data_for_model,
@@ -210,14 +211,14 @@ PA.fixed$model <- "PA"
 all_fixed <- bind_rows(fixed.effects, PO.fixed, PA.fixed)
 
 all_fixed %>% 
-        filter(model != "Count") %>% 
+        # filter(model != "Count") %>% 
         ggplot(aes(x = variable, y = median, colour = model)) + 
         geom_errorbar(aes(ymin = lower, ymax = higher), width =.1, position = position_dodge(width=0.3)) +
         geom_point(position = position_dodge(width=0.3)) + 
         geom_hline(yintercept = 0) + 
         theme_bw() + 
         coord_flip() +
-        scale_colour_colorblind() + 
+        scale_colour_colorblind() +
         labs(y = "Effect size", x = "", colour = "Model") +
         NULL
 

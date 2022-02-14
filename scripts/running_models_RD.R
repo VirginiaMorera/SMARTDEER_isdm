@@ -69,17 +69,12 @@ mdl_RD <- bru_sdm(data = RD_data_for_model,
                   spatialcovariates = covar_scaled,
                   covariatestoinclude = c("elevation", "tree_cover_density", "human_footprint_index", #"landCover",
                                           "forest_distances", "small_woody_features", "slope"),
-                  # covariatesbydataset = list(PO_data_sel = c("elevation", "tree_cover_density", "human_footprint_index",
-                  #                                            "forest_distances", "small_woody_features", "slope"),
-                  #                            PA_data_sel = c("elevation", "tree_cover_density",
-                  #                                            "forest_distances", "small_woody_features", "slope")),
                   specieseffects = TRUE,
                   pointsintercept = TRUE,
                   marksintercept = FALSE,
                   sharedspatial = F,
                   spdemodel =  list(PO_data_sel = RD_spdemodel_PO, 
                                     PA_data_sel = RD_spdemodel_PA),
-                  # spdemodel = RD_spdemodel_shared, 
                   pointsspatial = TRUE,
                   marksspatial = FALSE,
                   spatialdatasets = NULL,
@@ -124,7 +119,7 @@ fixed.effects %>%
 
 RD_pred_lin <- predict(mdl_RD, 
                        data = pix, 
-                       formula = ~(tree_cover_density + elevation + slope + #human_footprint_index +
+                       formula = ~(tree_cover_density + elevation + slope + human_footprint_index +
                                            forest_distances + small_woody_features +
                                            PA_data_sel_spde +
                                            PO_data_sel_spde +
@@ -139,7 +134,6 @@ RD_pred_resp <- predict(mdl_RD,
                         data = pix,
                         formula = ~exp(tree_cover_density + elevation + slope + human_footprint_index + 
                                                forest_distances + small_woody_features +
-                                               # shared_spatial +
                                                PO_data_sel_intercept + PA_data_sel_intercept +
                                                PA_data_sel_spde +
                                                PO_data_sel_spde))
@@ -187,6 +181,7 @@ RD_spde_PA <- predict(mdl_RD,
 
 plot(RD_spde_PA["mean"], main = "Mean of spatial effect PA")
 plot(RD_spde_PA["sd"], main = "Sd of spatial effect PA")
+saveRDS(RD_spde_PA, file = "RD_spde_PA_def.RDS")
 
 ips <- ipoints(in_bound, mesh1)
 mdl1_Ab <- predict(mdl_RD, 
