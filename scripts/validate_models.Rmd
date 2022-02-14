@@ -1,0 +1,303 @@
+---
+title: "Model validation"
+author: "Virginia Morera-Pujol"
+date: "14/02/2022"
+output:
+  html_document:
+    code_folding: hide  
+    number_sections: yes 
+    theme: readable      
+    highlight: "tango"    
+    toc: yes              
+    toc_float: true        
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+source("scripts/setups.R")
+
+```
+
+
+# Model validation
+
+To try and validate the results of the integrated species distribution models, we're going to use the density data based on fecal sampling by Tim Burkitt, and the estimates of low, moderate and high density collected during Coillte's desk surveys. We'll extract the value of the prediction at the centroid of each sampled property and, using linear models, we'll see how well the ISDM predictions can predict the observed values. 
+
+## Load and modify dta
+
+```{r}
+# load data
+ireland <- st_read("data/ireland_ITM.shp")
+dens_data <- read.csv("data/density_latlon_coillte_dens_surveys.csv", 
+                      row.names = NULL)
+coillte_data <- readRDS("data/PA_data_all.RDS")
+RD_pred_resp <- readRDS("server_outputs/RD_pred_resp_def.RDS")
+FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
+SD_pred_resp <- readRDS("server_outputs/SD_pred_resp_def.RDS")
+
+dens_sp <- dens_data %>% 
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs(ireland)) %>% 
+  st_transform(projKM)
+
+coillte_data <- coillte_data %>% 
+  dplyr::select(Red, Fallow, Sika, Year) %>% 
+  st_transform(projKM) %>% 
+  st_centroid()
+
+ireland_proj <- st_transform(ireland, projKM)
+
+preds <- stack(raster(RD_pred_resp["mean"]), 
+               raster(FD_pred_resp["mean"]), 
+               raster(SD_pred_resp["mean"]))
+names(preds) <- c("Red", "Fallow", "Sika")
+```
+
+
+## Validate models with Tim Burkitt data
+
+Tim Burkitt's data consists in a few properties sampled for several consecutive years. We can either calculate an average density for the properties sampled more than once, having only one dataset to validate against, or model each year's data against the prediction. 
+We're going to do both here
+
+### Averaged densities
+
+First we average densities in properties sampled more than once
+
+```{r}
+dens_avg <- dens_sp %>% 
+  group_by(Site_id, Species) %>% 
+  summarise(Dens.avg = mean(Deer.Density, na.rm = T)) %>% 
+  ungroup()
+```
+
+
+We now extract the values from the raster
+
+```{r}
+pred_values <- raster::extract(preds, dens_avg)
+
+dens_avg <- dens_avg %>% 
+  mutate(Red_pred = pred_values[,1], 
+         Fallow_pred = pred_values[,2],
+         Sika_pred = pred_values[,3])
+```
+
+
+And finally we generate the plots
+
+```{r plot avg densities, fig.height=10, fig.width=12, fig.align='center'}
+my.formula <- y ~ x
+
+RD_plot <- dens_avg %>% 
+    # filter(prediction > 0.1) %>%
+    # filter(Deer.Density > 0) %>%
+    filter(Species == "RedDeer") %>% 
+    ggplot(aes(x = Dens.avg, y = Red_pred)) +
+    geom_point() + 
+    geom_smooth(method='lm', formula= my.formula) + 
+    stat_poly_eq(formula = my.formula, 
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 parse = TRUE) +
+    theme_bw() + 
+    labs(x = "Tim Burkitt density", y = "Model prediction", 
+         title = "Red deer prediction validation")
+  
+FD_plot <- dens_avg %>% 
+    # filter(prediction > 0.1) %>%
+    # filter(Deer.Density > 0) %>%
+    filter(Species == "FallowDeer") %>% 
+    ggplot(aes(x = Dens.avg, y = Fallow_pred)) +
+    geom_point() + 
+    geom_smooth(method='lm', formula= my.formula) + 
+    stat_poly_eq(formula = my.formula, 
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 parse = TRUE) +
+    theme_bw() + 
+    labs(x = "Tim Burkitt density", y = "Model prediction", 
+         title = "Fallow deer prediction validation")
+
+SD_plot <- dens_avg %>% 
+    # filter(prediction > 0.1) %>%
+    # filter(Deer.Density > 0) %>%
+    filter(Species == "SikaDeer") %>% 
+    ggplot(aes(x = Dens.avg, y = Sika_pred)) +
+    geom_point() + 
+    geom_smooth(method='lm', formula= my.formula) + 
+    stat_poly_eq(formula = my.formula, 
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                 parse = TRUE) +
+    theme_bw() + 
+    labs(x = "Tim Burkitt density", y = "Model prediction", 
+         title = "Sika deer prediction validation")
+
+cowplot::plot_grid(RD_plot, FD_plot, SD_plot)
+```
+
+
+### Densities by year
+
+Extract raster values for the full dataset
+```{r}
+pred_yearly_values <- raster::extract(preds, dens_sp)
+
+dens_sp <- dens_sp %>% 
+  mutate(Red_pred = pred_yearly_values[,1], 
+         Fallow_pred = pred_yearly_values[,2],
+         Sika_pred = pred_yearly_values[,3])
+
+```
+
+
+#### Red deer
+
+```{r plot red deer densities, fig.height=10, fig.width=12, fig.align='center'}
+(RD_plot <- dens_sp %>% 
+   # filter(prediction > 0.1) %>%
+   # filter(Dens.avg > 0) %>%
+   filter(Species == "RedDeer") %>% 
+   group_by(Year) %>% 
+   mutate(count = n()) %>% 
+   ungroup() %>%  
+   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
+   ggplot(aes(x = Deer.Density, y = Red_pred)) +
+   geom_point() + 
+   geom_smooth(method='lm', formula= my.formula) + 
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +
+   theme_bw() + 
+   facet_wrap(~Year, scales = "free") + 
+   labs(x = "Tim Burkitt density", y = "Model prediction", 
+        title = "Red deer prediction validation"))
+```
+
+
+#### Fallow deer
+
+```{r plot fallow deer densities, fig.height=10, fig.width=12, fig.align='center'}
+(FD_plot <- dens_sp %>% 
+   # filter(prediction > 0.1) %>%
+   # filter(Dens.avg > 0) %>%
+   filter(Species == "FallowDeer") %>% 
+   group_by(Year) %>% 
+   mutate(count = n()) %>% 
+   ungroup() %>%  
+   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
+   ggplot(aes(x = Deer.Density, y = Fallow_pred)) +
+   geom_point() + 
+   geom_smooth(method='lm', formula= my.formula) + 
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +
+   theme_bw() + 
+   facet_wrap(~Year, scales = "free") + 
+   labs(x = "Tim Burkitt density", y = "Model prediction", 
+        title = "Fallow deer prediction validation"))
+```
+
+
+#### Sika deer
+
+```{r plot sika deer densities, fig.height=10, fig.width=12, fig.align='center'}
+(FD_plot <- dens_sp %>% 
+   # filter(prediction > 0.1) %>%
+   # filter(Dens.avg > 0) %>%
+   filter(Species == "SikaDeer") %>% 
+   group_by(Year) %>% 
+   mutate(count = n()) %>% 
+   ungroup() %>%  
+   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
+   ggplot(aes(x = Deer.Density, y = Sika_pred)) +
+   geom_point() + 
+   geom_smooth(method='lm', formula= my.formula) + 
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +
+   theme_bw() + 
+   facet_wrap(~Year, scales = "free") + 
+   labs(x = "Tim Burkitt density", y = "Model prediction", 
+        title = "Sika deer prediction validation"))
+```
+
+
+## Validate models with Coillte survey estimates
+
+
+First we extract the prediction value at the properties centroids
+
+```{r}
+est_pred <- raster::extract(preds, coillte_data)
+
+names(est_pred) <- c("Red", "Fallow", "Sika")
+
+coillte_data <- coillte_data %>% 
+  mutate(Red_pred = est_pred[,1], 
+         Fallow_pred = est_pred[,2],
+         Sika_pred = est_pred[,3])
+```
+
+
+Now plot the validations
+
+### Red deer
+
+```{r, fig.height=10, fig.width=12, fig.align='center'}
+my.formula <- y ~ x
+
+(RD_plot <- coillte_data %>% 
+    mutate(Red = factor(Red, levels = c("No", "Low", "Moderate", "High")), 
+           Red.num = as.numeric(Red)) %>% 
+    ggplot(aes(x = Red.num, y = Red_pred)) +
+    geom_boxplot(aes(x = Red, y = Red_pred)) +
+    # geom_point() +
+    geom_smooth(method='lm', formula= my.formula) +
+    stat_poly_eq(formula = my.formula,
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+                 parse = TRUE) +
+    theme_bw() + 
+    facet_wrap(~Year, scales = "free") + 
+    labs(x = "Coillte density estimates", y = "Model prediction", title = "Red deer prediction validation"))
+```
+
+### Fallow deer
+
+```{r, fig.height=10, fig.width=12, fig.align='center'}
+my.formula <- y ~ x
+
+(FD_plot <- coillte_data %>% 
+    mutate(Fallow = factor(Fallow, levels = c("No", "Low", "Moderate", "High")), 
+           Fallow.num = as.numeric(Fallow)) %>% 
+    ggplot(aes(x = Fallow.num, y = Fallow_pred)) +
+    geom_boxplot(aes(x = Fallow, y = Fallow_pred)) +
+    # geom_point() +
+    geom_smooth(method='lm', formula= my.formula) +
+    stat_poly_eq(formula = my.formula,
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+                 parse = TRUE) +
+    theme_bw() + 
+    facet_wrap(~Year, scales = "free") + 
+    labs(x = "Coillte density estimates", y = "Model prediction", title = "Fallow deer prediction validation"))
+```
+
+
+### Sika deer
+
+```{r, fig.height=10, fig.width=12, fig.align='center'}
+my.formula <- y ~ x
+
+(SD_plot <- coillte_data %>% 
+    mutate(Sika = factor(Sika, levels = c("No", "Low", "Moderate", "High")), 
+           Sika.num = as.numeric(Sika)) %>% 
+    ggplot(aes(x = Sika.num, y = Sika_pred)) +
+    geom_boxplot(aes(x = Sika, y = Sika_pred)) +
+    # geom_point() +
+    geom_smooth(method='lm', formula= my.formula) +
+    stat_poly_eq(formula = my.formula,
+                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+                 parse = TRUE) +
+    theme_bw() + 
+    facet_wrap(~Year, scales = "free") + 
+    labs(x = "Coillte density estimates", y = "Model prediction", title = "Sika deer prediction validation"))
+```
+
