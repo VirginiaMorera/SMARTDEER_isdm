@@ -5,7 +5,7 @@ ireland <- st_read("data/ireland_ITM.shp")
 ## Red deer ##
 
 # load model
-mdl_RD <- readRDS("cluster_outputs/mdl_RD_def.RDS")
+mdl_RD <- readRDS("server_outputs/mdl_RD_def.RDS")
 
 fixed.effects <- mdl_RD$summary.fixed
 fixed.effects$variable <- row.names(fixed.effects)
@@ -40,10 +40,10 @@ fixedRD <- fixed.effects %>%
 
 
 # map outputs
-RD_pred_lin <- readRDS("cluster_outputs/RD_pred_lin_def.RDS")
-RD_pred_resp <- readRDS("cluster_outputs/RD_pred_resp_def.RDS")
-RD_spde_PO <- readRDS("cluster_outputs/RD_spde_PO_def.RDS")
-RD_spde_PA <- readRDS("cluster_outputs/RD_spde_PA_def.RDS")
+RD_pred_lin <- readRDS("server_outputs/RD_pred_lin_def.RDS")
+RD_pred_resp <- readRDS("server_outputs/RD_pred_resp_def.RDS")
+RD_spde_PO <- readRDS("server_outputs/RD_spde_PO_def.RDS")
+RD_spde_PA <- readRDS("server_outputs/RD_spde_PA_def.RDS")
 
 ireland_proj <- st_transform(ireland, RD_pred_lin@proj4string)
 ireland_sp <- as_Spatial(ireland_proj)
@@ -57,7 +57,7 @@ spde_PA <- stack(raster(RD_spde_PA['mean']), raster(RD_spde_PA['sd']))
 
 # Plot 
 
-plotlayer <- pred_lin
+plotlayer <- pred_resp
 
 nl <- nlayers(plotlayer)
 m <- matrix(1:nl, ncol = 2)
@@ -85,7 +85,7 @@ levelplot(spdes, col.regions = viridis(16),
 ## Sika deer ##
 
 # load model
-mdl_SD <- readRDS("cluster_outputs/mdl_SD_def.RDS")
+mdl_SD <- readRDS("server_outputs/mdl_SD_def.RDS")
 
 fixed.effects <- mdl_SD$summary.fixed
 fixed.effects$variable <- row.names(fixed.effects)
@@ -120,10 +120,10 @@ fixedSD <- fixed.effects %>%
 
 
 # map outputs
-SD_pred_lin <- readRDS("cluster_outputs/SD_pred_lin_def.RDS")
-SD_pred_resp <- readRDS("cluster_outputs/SD_pred_resp_def.RDS")
-SD_spde_PO <- readRDS("cluster_outputs/SD_spde_PO_def.RDS")
-SD_spde_PA <- readRDS("cluster_outputs/SD_spde_PA_def.RDS")
+SD_pred_lin <- readRDS("server_outputs/SD_pred_lin_def.RDS")
+SD_pred_resp <- readRDS("server_outputs/SD_pred_resp_def.RDS")
+SD_spde_PO <- readRDS("server_outputs/SD_spde_PO_def.RDS")
+SD_spde_PA <- readRDS("server_outputs/SD_spde_PA_def.RDS")
 
 ireland_proj <- st_transform(ireland, SD_pred_lin@proj4string)
 ireland_sp <- as_Spatial(ireland_proj)
@@ -137,7 +137,7 @@ spde_PA <- stack(raster(SD_spde_PA['mean']), raster(SD_spde_PA['sd']))
 
 # Plot 
 
-plotlayer <- pred_lin
+plotlayer <- pred_resp
 
 nl <- nlayers(plotlayer)
 m <- matrix(1:nl, ncol = 2)
@@ -164,7 +164,7 @@ levelplot(spdes, col.regions = viridis(16),
 ## Fallow deer ##
 
 # load model
-mdl_FD <- readRDS("cluster_outputs/mdl_FD_def.RDS")
+mdl_FD <- readRDS("server_outputs/mdl_FD_def.RDS")
 
 fixed.effects <- mdl_FD$summary.fixed
 fixed.effects$variable <- row.names(fixed.effects)
@@ -200,10 +200,10 @@ fixedFD <- fixed.effects %>%
 cowplot::plot_grid(plotlist = list(fixedRD, fixedSD, fixedFD), ncol = 2)
 
 # map outputs
-FD_pred_lin <- readRDS("cluster_outputs/FD_pred_lin_def.RDS")
-FD_pred_resp <- readRDS("cluster_outputs/FD_pred_resp_def.RDS")
-FD_spde_PO <- readRDS("cluster_outputs/FD_spde_PO_def.RDS")
-FD_spde_PA <- readRDS("cluster_outputs/FD_spde_PA_def.RDS")
+FD_pred_lin <- readRDS("server_outputs/FD_pred_lin_def.RDS")
+FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
+FD_spde_PO <- readRDS("server_outputs/FD_spde_PO_def.RDS")
+FD_spde_PA <- readRDS("server_outputs/FD_spde_PA_def.RDS")
 
 ireland_proj <- st_transform(ireland, FD_pred_lin@proj4string)
 ireland_sp <- as_Spatial(ireland_proj)
@@ -240,3 +240,27 @@ levelplot(spdes, col.regions = viridis(16),
           # xlim = c(-22, -7), ylim = c(15, 33), 
           margin = FALSE, main = names(spdes)) + 
   latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
+
+
+
+### Plot predictions in the log scale
+
+preds <- stack(raster(RD_pred_resp["mean"]), raster(SD_pred_resp["mean"]), 
+              raster(FD_pred_resp["mean"]))
+
+names(preds) <- c("Red deer", "Sika deer", "Fallow deer")
+
+plotlayer <- preds
+
+nl <- nlayers(plotlayer)
+m <- matrix(1:nl, ncol = 3)
+for (i in 1:nl){
+  p <- levelplot(plotlayer, layers=i, col.regions = viridis(16), 
+                 xlab = "Longitude", ylab = "Latitude", 
+                 zscaleLog = FALSE,
+                 # xlim = c(-22, -7), ylim = c(15, 33), 
+                 margin = FALSE, main = names(plotlayer)[i]) + 
+    latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
+  print(p, split=c(col(m)[i], row(m)[i], ncol(m), nrow(m)), more=(i<nl))
+}
+
