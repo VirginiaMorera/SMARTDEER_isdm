@@ -14,7 +14,7 @@ sel_data <- all_data %>%
   filter(X > 421874) %>% 
   st_as_sf(coords = c("X", "Y")) %>% 
   st_set_crs(st_crs(ireland)) %>% 
-  st_transform(projKM) # IRENET 
+  st_transform(projKM) # IRENET in km
 
 sel_data %>% 
   filter(Type == "PO") %>%
