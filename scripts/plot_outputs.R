@@ -264,3 +264,6 @@ for (i in 1:nl){
   print(p, split=c(col(m)[i], row(m)[i], ncol(m), nrow(m)), more=(i<nl))
 }
 
+Cairo::CairoPDF(file = "fallowdeer.pdf", width = 8, height = 10)
+p
+dev.off()
