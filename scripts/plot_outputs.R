@@ -1,3 +1,4 @@
+
 # load ireland data
 ireland <- st_read("data/ireland_ITM.shp")
 
@@ -248,16 +249,20 @@ levelplot(spdes, col.regions = viridis(16),
 preds <- stack(raster(RD_pred_resp["mean"]), raster(SD_pred_resp["mean"]), 
               raster(FD_pred_resp["mean"]))
 
-names(preds) <- c("Red deer", "Sika deer", "Fallow deer")
+lins <- stack(raster(RD_pred_lin["mean"]), raster(SD_pred_lin["mean"]), 
+               raster(FD_pred_lin["mean"]))
 
-plotlayer <- preds
+names(preds) <- c("Red deer", "Sika deer", "Fallow deer")
+names(lins) <- c("Red deer", "Sika deer", "Fallow deer")
+
+plotlayer <- lins
 
 nl <- nlayers(plotlayer)
 m <- matrix(1:nl, ncol = 3)
 for (i in 1:nl){
   p <- levelplot(plotlayer, layers=i, col.regions = viridis(16), 
                  xlab = "Longitude", ylab = "Latitude", 
-                 zscaleLog = FALSE,
+                 zscaleLog = F,
                  # xlim = c(-22, -7), ylim = c(15, 33), 
                  margin = FALSE, main = names(plotlayer)[i]) + 
     latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
@@ -267,3 +272,46 @@ for (i in 1:nl){
 Cairo::CairoPDF(file = "fallowdeer.pdf", width = 8, height = 10)
 p
 dev.off()
+
+
+### Rescale lin predictions from 0 to 1
+
+rescaled_lins <- stack(rescale0to1(lins$Red.deer), 
+                       rescale0to1(lins$Sika.deer), 
+                       rescale0to1(lins$Fallow.deer))
+
+
+levelplot(rescaled_lins, col.regions = viridis(100), 
+          xlab = "Longitude", ylab = "Latitude", 
+          zscaleLog = FALSE,
+          # xlim = c(-22, -7), ylim = c(15, 33), 
+          margin = FALSE) + 
+  latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
+
+
+### Binary maps and multispecies map 
+
+quants <- c(0.25, 0.5, 0.75, 0.95)
+
+sumlist <- stack()
+for (i in seq_along(quants)) {
+  # i = 1
+  binaries <- rescaled_lins
+  binaries[binaries >= quants[i]] <- 1
+  binaries[binaries < quants[i]] <- 0
+  binsum <- sum(binaries)
+  sumlist <- stack(sumlist, binsum)
+}
+
+names(sumlist) <- paste0("Quantile ", quants)
+plot(sumlist)
+
+levelplot(sumlist,
+          col.regions = viridis(6),
+          layout=c(2, 2),
+          xlab = "Longitude", ylab = "Latitude", 
+          zscaleLog = FALSE,
+          # xlim = c(-22, -7), ylim = c(15, 33), 
+          margin = FALSE) + 
+  latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
+
