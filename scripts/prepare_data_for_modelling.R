@@ -6,6 +6,10 @@ all_data <- read.csv("data/all_data.csv", row.names = NULL)
 
 ireland <- st_read("data/ireland_ITM.shp") 
 
+ireland_sp <- as_Spatial(ireland)
+
+ireland_latlon <- spTransform(ireland_sp, CRSobj = CRS("EPSG:4326"))
+
 ireland_km <- ireland %>% 
   st_transform(projKM)
 
@@ -61,7 +65,27 @@ write.csv(PO_data, file = "data/PO_data_all.csv", row.names = F)
 
 # We're only going to load the data that, a priori, we want to enter in the model
 env_data <- stack("large_env_data/covar_subset_ITM.grd")
-plot(env_data)
+
+env_data_proj <- projectRaster(env_data, crs = CRS("EPSG:4326"))
+env_data_proj <- subset(env_data_proj, c(1:4, 6:7))
+# plot(env_data_proj)
+
+names(env_data_proj) <- c("Tree cover density", "Elevation", "Slope", 
+                          "Human footprint index", "Distance to forest edge", 
+                          "Small woody features")
+
+m <- matrix(1:6, nrow = 2)
+Cairo::CairoPDF(file = "FigS2.pdf", width = 15, height = 10)
+for (i in 1:6){
+  p <- levelplot(env_data_proj, layers=i, col.regions = viridis(16), 
+                 xlab = "Longitude", ylab = "Latitude", 
+                 zscaleLog = FALSE,
+                 # xlim = c(-22, -7), ylim = c(15, 33), 
+                 margin = FALSE, main = names(env_data_proj)[i]) + 
+    latticeExtra::layer(sp.polygons(ireland_latlon, lwd = 1, col = "darkgray"))
+  print(p, split=c(col(m)[i], row(m)[i], ncol(m), nrow(m)), more=(i<nl))
+}
+dev.off()
 
 # Previsualisation with Presence/Absence data
 PA_data_sf <- PA_data %>% 
