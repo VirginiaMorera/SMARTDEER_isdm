@@ -135,11 +135,12 @@ covarplot <- fixed.effects_all %>%
   ggplot(aes(x = variable, 
              y = mean,
              colour = Species)) + 
-  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width =.1, position = position_dodge(width=0.3)) +
-  geom_line(position = position_dodge(width=0.3)) +
-  geom_point(position = position_dodge(width=0.3)) + 
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width =.1, position = position_dodge(width = -0.3)) +
+  geom_line(position = position_dodge(width = -0.3)) +
+  geom_point(position = position_dodge(width = -0.3)) + 
   geom_hline(yintercept = 0) + 
   theme_bw() + 
+  scale_colour_colorblind() + 
   coord_flip() + 
   labs(title = "Covariate effects", y = "Effect size", x = "", colour = "Species") +
   # facet_wrap(~Species) +
@@ -181,8 +182,8 @@ rescaled_lins <- stack(rescale0to1(pred_linRD$mean),
                        rescale0to1(pred_linFD$mean))
 
 rescaled_lins_latlon <- projectRaster(rescaled_lins, crs = CRS("EPSG:4326"))
-
 rescaled_lins_latlon <- mask(rescaled_lins_latlon, ireland_latlon)
+
 
 #### Plot ####
 
@@ -216,6 +217,10 @@ sdplot <- levelplot(sds_latlon, col.regions = viridis(100),
 
 Cairo::CairoPDF(file = "Fig3b.pdf", height = 5, width = 10)
 sdplot
+dev.off()
+
+Cairo::CairoPDF(file = "Fig3.pdf", height = 10, width = 12)
+cowplot::plot_grid(predplot, sdplot, nrow = 2)
 dev.off()
 
 #### Plot spatial fields####
