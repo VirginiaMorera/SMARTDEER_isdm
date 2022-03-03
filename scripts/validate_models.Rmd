@@ -35,9 +35,14 @@ ireland <- st_read("data/ireland_ITM.shp")
 dens_data <- read.csv("data/density_latlon_coillte_dens_surveys.csv", 
                       row.names = NULL)
 coillte_data <- readRDS("data/PA_data_all.RDS")
+
 RD_pred_resp <- readRDS("server_outputs/RD_pred_resp_def.RDS")
-FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
 SD_pred_resp <- readRDS("server_outputs/SD_pred_resp_def.RDS")
+FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
+
+RD_pred_scaled <- rescale0to1(raster(RD_pred_resp["mean"]))
+SD_pred_scaled <- rescale0to1(raster(SD_pred_resp["mean"]))
+FD_pred_scaled <- rescale0to1(raster(FD_pred_resp["mean"]))
 
 dens_sp <- dens_data %>% 
   st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs(ireland)) %>% 
@@ -50,10 +55,11 @@ coillte_data <- coillte_data %>%
 
 ireland_proj <- st_transform(ireland, projKM)
 
-preds <- stack(raster(RD_pred_resp["mean"]), 
-               raster(FD_pred_resp["mean"]), 
-               raster(SD_pred_resp["mean"]))
-names(preds) <- c("Red", "Fallow", "Sika")
+preds <- stack(RD_pred_scaled,
+               SD_pred_scaled,
+               FD_pred_scaled)
+
+names(preds) <- c("Red", "Sika", "Fallow")
 
 
 culling_data <- read.csv("data/culling_data.csv", row.names = NULL)
@@ -319,19 +325,17 @@ We first have to add up the predicted intensity by county
 bycounty_abundances <- data.frame(
   County = ireland$NAME_TAG, 
   Red = NA, 
-  Fallow = NA, 
-  Sika = NA
+  Sika = NA, 
+  Fallow = NA
 )
 
 for (i in seq_along(bycounty_abundances$County)) {
   # i = 1
   county <- ireland_proj %>% filter(NAME_TAG == bycounty_abundances$County[i])
   cropped <- mask(crop(preds, county), county)
-  # print(levelplot(cropped, main = bycounty_abundances$County[i]) + 
+  # print(levelplot(cropped, main = bycounty_abundances$County[i]) +
   #         latticeExtra::layer(sp.polygons(as_Spatial(county))))
-  
-  # plot(cropped$Red, main = bycounty_abundances$County[i])
-  # plot(as_Spatial(county), add = T)
+
   sum_raster_cells <-cellStats(cropped, 'sum')  
   bycounty_abundances[i, 2:4] <- sum_raster_cells
 }
@@ -369,7 +373,7 @@ RD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE) +
+  geom_text(aes(label = County), check_overlap = TRUE,nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
        title = "Red deer prediction validation by county")
@@ -383,7 +387,7 @@ FD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 0.2) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
        title = "Fallow deer prediction validation by county")
@@ -396,14 +400,14 @@ SD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 0.2) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
        title = "Sika deer prediction validation by county")
 
-
+# Cairo::CairoPDF(file = "Fig4.pdf", width = 12, height = 10)
 cowplot::plot_grid(RD_cull, FD_cull, SD_cull, ncol = 2)
-
+# dev.off()
 ```
 
 
@@ -434,7 +438,7 @@ RD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (total)", y = "Model prediction", 
        title = "Red deer prediction validation by county")
@@ -448,7 +452,7 @@ FD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 0.2) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (total)", y = "Model prediction", 
        title = "Fallow deer prediction validation by county")
@@ -461,7 +465,7 @@ SD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 0.2) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(x = "Average culling returns (total)", y = "Model prediction", 
        title = "Sika deer prediction validation by county")
