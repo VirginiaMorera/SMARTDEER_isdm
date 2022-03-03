@@ -38,16 +38,16 @@ fixed.effectsRD <- fixed.effectsRD %>%
 names(fixed.effectsRD) <- c("mean", "sd", "lower", "median", "higher", "mode", "kld", "variable")
 
 fixed.effectsRD$variable <- c("Tree cover density", "Elevation", "Slope",
-                            "Human footprint index", "Forest distance", "Small Woody Features")
+                            "Human footprint index", "Distance to forest edge", "Small Woody Features")
 
 fixed.effectsRD %>% 
   # filter(variable != "Human footprint index") %>%
   ggplot(aes(x = variable, 
-             # y = median,
-             y = mean,
+             y = median,
+             # y = mean,
              colour = variable)) + 
-  # geom_errorbar(aes(ymin = lower, ymax = higher), width =.1) +
-  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width =.1) +
+  geom_errorbar(aes(ymin = lower, ymax = higher), width =.1) +
+  # geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width =.1) +
   geom_line() +
   geom_point() + 
   geom_hline(yintercept = 0) + 
@@ -70,7 +70,7 @@ names(fixed.effectsSD) <- c("mean", "sd", "lower", "median", "higher", "mode", "
 #                             "Human footprint index", "Land cover")
 
 fixed.effectsSD$variable <- c("Tree cover density", "Elevation", "Slope",
-                              "Human footprint index", "Forest distance", "Small Woody Features")
+                              "Human footprint index", "Distance to forest edge", "Small Woody Features")
 
 
 fixed.effectsSD %>% 
@@ -103,7 +103,7 @@ names(fixed.effectsFD) <- c("mean", "sd", "lower", "median", "higher", "mode", "
 #                             "Human footprint index", "Land cover")
 
 fixed.effectsFD$variable <- c("Tree cover density", "Elevation", "Slope",
-                              "Human footprint index", "Forest distance", "Small Woody Features")
+                              "Human footprint index", "Distance to forest edge", "Small Woody Features")
 
 
 fixed.effectsFD %>% 
@@ -129,13 +129,18 @@ fixed.effectsFD$Species <- "Fallow deer"
 fixed.effects_all <- bind_rows(fixed.effectsFD, fixed.effectsRD, fixed.effectsSD)
 
 fixed.effects_all <- fixed.effects_all %>% 
-  mutate(Species = factor(Species, levels = c("Red deer", "Sika deer", "Fallow deer")))
+  mutate(Species = factor(Species, levels = c("Red deer", "Sika deer", "Fallow deer")), 
+         variable = factor(variable, levels = c("Tree cover density", "Distance to forest edge", 
+                                                "Small Woody Features", "Elevation", "Slope", 
+                                                "Human footprint index")))
 
 covarplot <- fixed.effects_all %>% 
   ggplot(aes(x = variable, 
-             y = mean,
+             # y = mean,
+             y = median, 
              colour = Species)) + 
-  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width =.1, position = position_dodge(width = -0.3)) +
+  geom_errorbar(aes(ymin = lower, ymax = higher), width =.1, position = position_dodge(width = -0.3)) +
+  geom_errorbar(aes(ymin = lower, ymax = higher), width =.1, position = position_dodge(width = -0.3)) +
   geom_line(position = position_dodge(width = -0.3)) +
   geom_point(position = position_dodge(width = -0.3)) + 
   geom_hline(yintercept = 0) + 
