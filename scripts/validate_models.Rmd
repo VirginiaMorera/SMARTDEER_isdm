@@ -94,8 +94,8 @@ pred_values <- raster::extract(preds, dens_avg)
 
 dens_avg <- dens_avg %>% 
   mutate(Red_pred = pred_values[,1], 
-         Fallow_pred = pred_values[,2],
-         Sika_pred = pred_values[,3])
+         Sika_pred = pred_values[,2],
+         Fallow_pred = pred_values[,3])
 ```
 
 
@@ -158,8 +158,8 @@ pred_yearly_values <- raster::extract(preds, dens_sp)
 
 dens_sp <- dens_sp %>% 
   mutate(Red_pred = pred_yearly_values[,1], 
-         Fallow_pred = pred_yearly_values[,2],
-         Sika_pred = pred_yearly_values[,3])
+         Sika_pred = pred_yearly_values[,2],
+         Fallow_pred = pred_yearly_values[,3])
 
 ```
 
@@ -244,12 +244,12 @@ First we extract the prediction value at the properties centroids
 ```{r}
 est_pred <- raster::extract(preds, coillte_data)
 
-names(est_pred) <- c("Red", "Fallow", "Sika")
+names(est_pred) <- c("Red", "Sika", "Fallow")
 
 coillte_data <- coillte_data %>% 
   mutate(Red_pred = est_pred[,1], 
-         Fallow_pred = est_pred[,2],
-         Sika_pred = est_pred[,3])
+         Sika_pred = est_pred[,2],
+         Fallow_pred = est_pred[,3])
 ```
 
 
@@ -373,10 +373,10 @@ RD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE,nudge_y = 1.5) +
+  geom_text_repel(aes(label = County)) + 
   theme_bw() + 
-  labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
-       title = "Red deer prediction validation by county")
+  labs(x = "Average returns by license", 
+       y = "Aggregated county-level prediction")
 
 
 FD_cull <- cull_validating_avg %>% 
@@ -387,10 +387,10 @@ FD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
+  geom_text_repel(aes(label = County)) + 
   theme_bw() + 
-  labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
-       title = "Fallow deer prediction validation by county")
+  labs(x = "Average returns by license", 
+       y = "Aggregated county-level prediction")
 
 SD_cull <- cull_validating_avg %>% 
   filter(Species == "Sika") %>% 
@@ -400,13 +400,13 @@ SD_cull <- cull_validating_avg %>%
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
+  geom_text_repel(aes(label = County)) + 
   theme_bw() + 
-  labs(x = "Average culling returns (corrected by license)", y = "Model prediction", 
-       title = "Sika deer prediction validation by county")
+  labs(x = "Average returns by license", 
+       y = "Aggregated county-level prediction")
 
 # Cairo::CairoPDF(file = "Fig4.pdf", width = 12, height = 10)
-cowplot::plot_grid(RD_cull, FD_cull, SD_cull, ncol = 2)
+cowplot::plot_grid(RD_cull, SD_cull, FD_cull, ncol = 2, labels = c("A", "B", "C"))
 # dev.off()
 ```
 
