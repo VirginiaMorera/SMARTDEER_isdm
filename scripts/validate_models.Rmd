@@ -324,9 +324,9 @@ We first have to add up the predicted intensity by county
 ```{r}
 bycounty_abundances <- data.frame(
   County = ireland$NAME_TAG, 
-  Red = NA, 
-  Sika = NA, 
-  Fallow = NA
+  Red_model = NA, 
+  Sika_model = NA, 
+  Fallow_model = NA
 )
 
 for (i in seq_along(bycounty_abundances$County)) {
@@ -367,45 +367,45 @@ my.formula <-  y~x
 
 RD_cull <- cull_validating_avg %>% 
   filter(Species == "Red") %>% 
-  ggplot(aes(x = Deer_corrected, y = Red)) + 
+  ggplot(aes(y = Deer_corrected, x = Red_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text_repel(aes(label = County)) + 
+  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.1, min.segment.length = 10) + 
   theme_bw() + 
-  labs(x = "Average returns by license", 
-       y = "Aggregated county-level prediction")
+  labs(y = "Average returns by license", 
+       x = "Aggregated county-level prediction")
 
 
 FD_cull <- cull_validating_avg %>% 
   filter(Species == "Fallow") %>% 
-  ggplot(aes(x = Deer_corrected, y = Fallow)) + 
+  ggplot(aes(y = Deer_corrected, x = Fallow_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text_repel(aes(label = County)) + 
+  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.5, min.segment.length = 10) + 
   theme_bw() + 
-  labs(x = "Average returns by license", 
-       y = "Aggregated county-level prediction")
+  labs(y = "Average returns by license", 
+       x = "Aggregated county-level prediction")
 
 SD_cull <- cull_validating_avg %>% 
   filter(Species == "Sika") %>% 
-  ggplot(aes(x = Deer_corrected, y = Sika)) + 
+  ggplot(aes(y = Deer_corrected, x = Sika_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = TRUE) +
-  geom_text_repel(aes(label = County)) + 
+  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.1, min.segment.length = 10) + 
   theme_bw() + 
-  labs(x = "Average returns by license", 
-       y = "Aggregated county-level prediction")
+  labs(y = "Average returns by license", 
+       x = "Aggregated county-level prediction")
 
-# Cairo::CairoPDF(file = "Fig4.pdf", width = 12, height = 10)
+# Cairo::CairoPDF(file = "Fig4.pdf", width = 15, height = 12)
 cowplot::plot_grid(RD_cull, SD_cull, FD_cull, ncol = 2, labels = c("A", "B", "C"))
 # dev.off()
 ```
@@ -432,7 +432,7 @@ my.formula <-  y~x
 
 RD_cull <- cull_validating_avg %>% 
   filter(Species == "Red") %>% 
-  ggplot(aes(x = Deer_total, y = Red)) + 
+  ggplot(aes(y = Deer_total, x = Red_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
@@ -440,13 +440,13 @@ RD_cull <- cull_validating_avg %>%
                parse = TRUE) +
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
-  labs(x = "Average culling returns (total)", y = "Model prediction", 
+  labs(y = "Average culling returns (total)", x = "Model prediction", 
        title = "Red deer prediction validation by county")
 
 
 FD_cull <- cull_validating_avg %>% 
   filter(Species == "Fallow") %>% 
-  ggplot(aes(x = Deer_total, y = Fallow)) + 
+  ggplot(aes(y = Deer_total, x = Fallow_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
@@ -454,12 +454,12 @@ FD_cull <- cull_validating_avg %>%
                parse = TRUE) +
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
-  labs(x = "Average culling returns (total)", y = "Model prediction", 
+  labs(y = "Average culling returns (total)", x = "Model prediction", 
        title = "Fallow deer prediction validation by county")
 
 SD_cull <- cull_validating_avg %>% 
   filter(Species == "Sika") %>% 
-  ggplot(aes(x = Deer_total, y = Sika)) + 
+  ggplot(aes(y = Deer_total, x = Sika_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
   stat_poly_eq(formula = my.formula,
@@ -467,7 +467,7 @@ SD_cull <- cull_validating_avg %>%
                parse = TRUE) +
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
-  labs(x = "Average culling returns (total)", y = "Model prediction", 
+  labs(y = "Average culling returns (total)", x = "Model prediction", 
        title = "Sika deer prediction validation by county")
 
 

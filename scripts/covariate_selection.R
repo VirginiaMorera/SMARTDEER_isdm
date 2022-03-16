@@ -30,16 +30,27 @@ forest_distances <- sum(dist_to_forest, dist_to_fEdge)
 forest_distances <- mask(forest_distances, ireland_sp)
 plot(forest_distances)
 covars$forest_distances <- forest_distances
+plot(covars)
 
-subs <- subset(covars, c("landCover", "tree_cover_density", "elevation", "slope", "human_footprint_index", "forest_distances", 
+subs <- subset(covars, c("tree_cover_density", "elevation", "slope", "human_footprint_index", "forest_distances", 
                          "small_woody_features"))
 
 plot(subs)
 
 corsub <-layerStats(subs,'pearson', na.rm = T)
 
+colnames(corsub$`pearson correlation coefficient`) <- c("Tree cover density", "Elevation", "Slope", "Human footprint index", "Distance to forest edge", 
+                                                           "Density of small woody features")
+rownames(corsub$`pearson correlation coefficient`) <- c("Tree cover density", "Elevation", "Slope", "Human footprint index", "Distance to forest edge", 
+                                                                "Density of small woody features")
+                  
 corrSub <- ggcorrplot(corsub$`pearson correlation coefficient`, method = "circle", type = "upper", 
-                      legend.title = "Pear Cor 1km", show.diag = T, lab = T)
+                      legend.title = "Pearson Correlation", show.diag = F, lab = T)
+
+Cairo::CairoPDF(file = "Fig5Sup.pdf", width = 8, height = 6)
+corrSub
+dev.off()
+
 
 # project each layer separately to use different method for landCover
 env_data_ITM <- stack() 

@@ -181,13 +181,13 @@ saveRDS(FD_spde_PA, file = "FD_spde_PA_def.FDS")
 
 
 ips <- ipoints(in_bound, mesh1)
-mdl1_Ab <- predict(mdl_FD, 
+
+mdl1_FD_Ab <- predict(mdl_FD, 
                    ips,
                    formula = ~sum(weight*exp((tree_cover_density + elevation + slope + human_footprint_index + 
                                                       forest_distances + small_woody_features +
                                                       PA_data_sel_spde +
-                                                      PO_data_sel_spde +
-                                                      PO_data_sel_intercept  + PA_data_sel_intercept))))
+                                                      PO_data_sel_spde))))
 
 
 

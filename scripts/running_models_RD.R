@@ -11,7 +11,7 @@ in_bound <- readRDS("data/inner_boundary.RDS")
 mesh0 <- readRDS("data/mesh.RDS")
 mesh1 <- readRDS("data/meshLarge.RDS")
 mesh2 <- readRDS("data/meshVLarge.RDS")
-covar_stack <- stack("data/covar_subset_KM.gri")
+covar_stack <- stack("large_env_data/covar_subset_KM.gri")
 covar_scaled <- scale(covar_stack)
 spatialcovs <- as(covar_scaled, "SpatialPixelsDataFrame")
 
@@ -189,8 +189,7 @@ mdl1_Ab <- predict(mdl_RD,
                    formula = ~sum(weight*exp((tree_cover_density + elevation + slope + human_footprint_index + 
                                                       forest_distances + small_woody_features +
                                                       PA_data_sel_spde +
-                                                      PO_data_sel_spde +
-                                                      PO_data_sel_intercept  + PA_data_sel_intercept))))
+                                                      PO_data_sel_spde))))
 
 
 loo_PO <- leave_one_out(mdl_RD, dataset = "PO_data_sel")
