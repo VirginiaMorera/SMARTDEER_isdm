@@ -67,6 +67,19 @@ culling_data <- read.csv("data/culling_data.csv", row.names = NULL)
 culling_data <- culling_data %>% 
   dplyr::select(Year = SeasonStart, County, Species, Deer_corrected, Deer_killed) %>% 
   filter(Year >= 2010)
+
+nfi_data <- readRDS("C:/Users/morer/Dropbox/Virginia_post_UB/01_Smartdeer/NFI_data_analysis/final_df.RDS")
+
+
+damage_bin <- nfi_data %>% 
+  mutate(Deer_damage = if_else(Biotic_damage_agent == "deer", 1, 0), 
+         Deer_damage = if_else(is.na(Deer_damage), 0, Deer_damage)) %>% 
+  st_as_sf(sf_column_name = "geometry") %>% 
+  dplyr::select(Plot_ID, Deer_damage) %>% 
+  distinct() %>% 
+  group_by(Plot_ID) %>% 
+  summarise(Deer_damage = sum(Deer_damage)) %>% 
+  ungroup()
 ```
 
 
@@ -106,44 +119,44 @@ my.formula <- y ~ x
 
 RD_plot <- dens_avg %>% 
     # filter(prediction > 0.1) %>%
-    # filter(Deer.Density > 0) %>%
+    # filter(Dens.avg > 0) %>%
     filter(Species == "RedDeer") %>% 
-    ggplot(aes(x = Dens.avg, y = Red_pred)) +
+    ggplot(aes(y = Dens.avg, x = Red_pred)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
                  aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
                  parse = TRUE) +
     theme_bw() + 
-    labs(x = "Tim Burkitt density", y = "Model prediction", 
+    labs(y = "Tim Burkitt density", x = "Model prediction", 
          title = "Red deer prediction validation")
   
 FD_plot <- dens_avg %>% 
     # filter(prediction > 0.1) %>%
-    # filter(Deer.Density > 0) %>%
+    # filter(Dens.avg > 0) %>%
     filter(Species == "FallowDeer") %>% 
-    ggplot(aes(x = Dens.avg, y = Fallow_pred)) +
+    ggplot(aes(y = Dens.avg, x = Fallow_pred)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
                  aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
                  parse = TRUE) +
     theme_bw() + 
-    labs(x = "Tim Burkitt density", y = "Model prediction", 
+    labs(y = "Tim Burkitt density", x = "Model prediction", 
          title = "Fallow deer prediction validation")
 
 SD_plot <- dens_avg %>% 
     # filter(prediction > 0.1) %>%
-    # filter(Deer.Density > 0) %>%
+    # filter(Dens.avg > 0) %>%
     filter(Species == "SikaDeer") %>% 
-    ggplot(aes(x = Dens.avg, y = Sika_pred)) +
+    ggplot(aes(y = Dens.avg, x = Sika_pred)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
                  aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
                  parse = TRUE) +
     theme_bw() + 
-    labs(x = "Tim Burkitt density", y = "Model prediction", 
+    labs(y = "Tim Burkitt density", x = "Model prediction", 
          title = "Sika deer prediction validation")
 
 cowplot::plot_grid(RD_plot, FD_plot, SD_plot)
@@ -175,7 +188,7 @@ dens_sp <- dens_sp %>%
    mutate(count = n()) %>% 
    ungroup() %>%  
    filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(x = Deer.Density, y = Red_pred)) +
+   ggplot(aes(y = Deer.Density, x = Red_pred)) +
    geom_point() + 
    geom_smooth(method='lm', formula= my.formula) + 
    stat_poly_eq(formula = my.formula, 
@@ -183,7 +196,7 @@ dens_sp <- dens_sp %>%
                 parse = TRUE) +
    theme_bw() + 
    facet_wrap(~Year, scales = "free") + 
-   labs(x = "Tim Burkitt density", y = "Model prediction", 
+   labs(y = "Tim Burkitt density", x = "Model prediction", 
         title = "Red deer prediction validation"))
 ```
 
@@ -199,7 +212,7 @@ dens_sp <- dens_sp %>%
    mutate(count = n()) %>% 
    ungroup() %>%  
    filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(x = Deer.Density, y = Fallow_pred)) +
+   ggplot(aes(y = Deer.Density, x = Fallow_pred)) +
    geom_point() + 
    geom_smooth(method='lm', formula= my.formula) + 
    stat_poly_eq(formula = my.formula, 
@@ -207,7 +220,7 @@ dens_sp <- dens_sp %>%
                 parse = TRUE) +
    theme_bw() + 
    facet_wrap(~Year, scales = "free") + 
-   labs(x = "Tim Burkitt density", y = "Model prediction", 
+   labs(y = "Tim Burkitt density", x = "Model prediction", 
         title = "Fallow deer prediction validation"))
 ```
 
@@ -215,7 +228,7 @@ dens_sp <- dens_sp %>%
 #### Sika deer
 
 ```{r plot sika deer densities, fig.height=10, fig.width=12, fig.align='center'}
-(FD_plot <- dens_sp %>% 
+(SD_plot <- dens_sp %>% 
    # filter(prediction > 0.1) %>%
    # filter(Dens.avg > 0) %>%
    filter(Species == "SikaDeer") %>% 
@@ -223,7 +236,7 @@ dens_sp <- dens_sp %>%
    mutate(count = n()) %>% 
    ungroup() %>%  
    filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(x = Deer.Density, y = Sika_pred)) +
+   ggplot(aes(y = Deer.Density, x = Sika_pred)) +
    geom_point() + 
    geom_smooth(method='lm', formula= my.formula) + 
    stat_poly_eq(formula = my.formula, 
@@ -231,7 +244,7 @@ dens_sp <- dens_sp %>%
                 parse = TRUE) +
    theme_bw() + 
    facet_wrap(~Year, scales = "free") + 
-   labs(x = "Tim Burkitt density", y = "Model prediction", 
+   labs(y = "Tim Burkitt density", x = "Model prediction", 
         title = "Sika deer prediction validation"))
 ```
 
@@ -476,3 +489,52 @@ cowplot::plot_grid(RD_cull, FD_cull, SD_cull, ncol = 2)
 ```
 
 
+## Validate models with NFI damage data
+
+```{r}
+damage_sp <- extract(preds, damage_bin)
+
+names(damage_sp) <- c("Red", "Sika", "Fallow")
+
+damage_data <- damage_bin %>% 
+  mutate(Red_pred = damage_sp[,1], 
+         Sika_pred = damage_sp[,2],
+         Fallow_pred = damage_sp[,3])
+```
+
+### Model damage against deer predictions interacted
+```{r}
+md1 <- glm(Deer_damage ~ Red_pred*Sika_pred*Fallow_pred, data = damage_data, family = "binomial")
+
+summary(md1)
+with(summary(md1), 1 - deviance/null.deviance)
+
+damage_data_output <- damage_data %>% 
+  mutate(predicted_damage = predict(md1, newdata = NULL, type = "response")) %>% 
+  dplyr::select(-Plot_ID, -Deer_damage) %>%
+  st_drop_geometry() %>% 
+  pivot_longer(!predicted_damage, names_to = "Species", values_to = "Predicted_densities") %>% 
+  mutate(Species = recode(Species, Red_pred = "Red deer", Sika_pred = "Sika deer", Fallow_pred = "Fallow deer"), 
+         Species = factor(Species, levels = c("Red deer", "Sika deer", "Fallow deer"))) 
+
+ggplot(damage_data_output) + 
+  geom_point(aes(x = Predicted_densities, y = predicted_damage, col = Species)) + 
+  labs(x = "Predicted abundances", y = "Predicted damage") + 
+  facet_wrap(~Species, nrow = 2) +
+  theme_bw()
+
+
+```
+
+### Cumulative deer abundances
+```{r}
+damage_data <- damage_data %>% 
+  mutate(sum_densities = Red_pred + Sika_pred + Fallow_pred)
+
+
+ggplot(data = damage_data, aes(y = sum_densities, x = factor(Deer_damage))) + 
+  geom_boxplot() + 
+  theme_bw() + 
+  labs(y = "Cumulative densities", x = "Deer damage", 
+       title = "Cumulative densities vs. binary damage")
+```
