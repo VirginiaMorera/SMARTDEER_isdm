@@ -504,7 +504,9 @@ damage_data <- damage_bin %>%
 
 ### Model damage against deer predictions interacted
 ```{r}
-md1 <- glm(Deer_damage ~ Red_pred*Sika_pred*Fallow_pred, data = damage_data, family = "binomial")
+md1 <- glm(Deer_damage ~ (Red_pred+Sika_pred+Fallow_pred)^2, 
+           data = damage_data, 
+           family = "binomial")
 
 summary(md1)
 with(summary(md1), 1 - deviance/null.deviance)

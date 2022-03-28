@@ -62,7 +62,6 @@ env_data_ITM$landCover <- projectRaster(subs$landCover, crs = CRS("+init=epsg:21
 env_data_ITM$forest_distances <- projectRaster(subs$forest_distances, crs = CRS("+init=epsg:2157"), method = "bilinear")
 env_data_ITM$small_woody_features <- projectRaster(subs$small_woody_features, crs = CRS("+init=epsg:2157"), method = "bilinear")
 
-
 writeRaster(env_data_ITM, filename = "large_env_data/covar_subset_ITM.grd", format = "raster", overwrite = T)
 
 
@@ -84,3 +83,18 @@ covar_stack <- stack("large_env_data/covar_subset_ITM.gri")
 covar_stackKM <- projectRaster(covar_stack, crs = projKM)
 
 writeRaster(covar_stackKM, filename = "large_env_data/covar_subset_KM.grd", format = "raster", overwrite = T)
+
+covar_stackKM <- stack("large_env_data/covar_subset_KM.grd")
+
+
+
+covar_stackKM <- projectRaster(covar_stackKM, crs = CRS("EPSG:4326"))
+ireland_sp <- spTransform(ireland_sp, CRSobj = CRS("EPSG:4326"))
+
+covar_stackKM <- mask(covar_stackKM, ireland_sp)
+
+levelplot(covar_stackKM$forest_distances, col.regions = viridis(100), 
+          xlab = "Longitude", ylab = "Latitude", 
+          xlim = c(-11, -5), ylim = c(51.4, 55.5),
+          margin = FALSE, zscaleLog = FALSE, main = "Distance to forest") + 
+  latticeExtra::layer(sp.polygons(ireland_sp, col = "white", alpha = 0.5))

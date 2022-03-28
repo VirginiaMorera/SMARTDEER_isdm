@@ -372,7 +372,7 @@ quants <- c(0.25, 0.5, 0.75, 0.95)
 sumlist <- stack()
 for (i in seq_along(quants)) {
   # i = 1
-  binaries <- rescaled_lins
+  binaries <- rescaled_lins_latlon
   binaries[binaries >= quants[i]] <- 1
   binaries[binaries < quants[i]] <- 0
   binsum <- sum(binaries)
@@ -382,12 +382,31 @@ for (i in seq_along(quants)) {
 names(sumlist) <- paste0("Quantile ", quants)
 plot(sumlist)
 
-levelplot(sumlist,
-          col.regions = viridis(6),
-          layout=c(2, 2),
+levelplot(sumlist$Quantile.0.5,
+          # col.regions = viridis(3),
+          # layout=c(2, 2),
           xlab = "Longitude", ylab = "Latitude", 
           zscaleLog = FALSE,
           # xlim = c(-22, -7), ylim = c(15, 33), 
           margin = FALSE) + 
   latticeExtra::layer(sp.polygons(ireland_sp, lwd = 1, col = "darkgray"))
 
+
+x <- sumlist$Quantile.0.5
+# x <- projectRaster(x, crs = ireland_latlon@proj4string)
+plot(x)
+r <- ratify(x)
+rat <- levels(r)[[1]]
+rat$landcover <- c("0", "1", "2", "3")
+levels(r) <- rat
+levelplot(r)
+
+
+levelplot(r,
+          col.regions = viridis(4),
+          # layout=c(2, 2),
+          xlab = "Longitude", ylab = "Latitude", 
+          zscaleLog = FALSE,
+          # xlim = c(-22, -7), ylim = c(15, 33), 
+          margin = FALSE) + 
+  latticeExtra::layer(sp.polygons(ireland_latlon, lwd = 1, col = "darkgray"))
