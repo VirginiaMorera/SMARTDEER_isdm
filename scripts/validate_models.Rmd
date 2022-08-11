@@ -423,6 +423,37 @@ cowplot::plot_grid(RD_cull, SD_cull, FD_cull, ncol = 2, labels = c("A", "B", "C"
 # dev.off()
 ```
 
+```{r}
+RD_mdl <- cull_validating_avg %>% 
+  filter(Species == "Red") %>% 
+  lm(Deer_corrected ~ Red_model, data = .)
+
+summary(RD_mdl)
+
+SD_mdl <- cull_validating_avg %>% 
+  filter(Species == "Sika") %>% 
+  lm(Deer_corrected ~ Sika_model, data = .)
+
+summary(SD_mdl)
+
+FD_mdl <- cull_validating_avg %>% 
+  filter(Species == "Fallow") %>% 
+  lm(Deer_corrected ~ Fallow_model, data = .)
+
+summary(FD_mdl)
+
+
+mdls_sum <- bind_rows(jtools::glance(RD_mdl), 
+                      jtools::glance(SD_mdl), 
+                      jtools::glance(FD_mdl)) %>% 
+  mutate(Species = c("Red deer", "Sika deer", "Fallow deer")) %>% 
+  dplyr::select(Species, r2 = r.squared, r2.adj = adj.r.squared, F.stat = statistic, 
+                p.val = p.value) 
+
+write.csv(mdls_sum, "mdls_sum.csv")
+  
+
+```
 
 ### Validate with total cullings
 
