@@ -2,7 +2,7 @@
 #### Deer data ####
 ##---------------##
 
-all_data <- read.csv("data/all_data.csv", row.names = NULL)
+all_data <- read.csv("data/all_data_clean.csv", row.names = NULL)
 
 ireland <- st_read("data/ireland_ITM.shp") 
 
