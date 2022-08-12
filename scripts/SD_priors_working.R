@@ -1,3 +1,4 @@
+source("scripts/setups.R")
 
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh1 <- readRDS("data/meshLarge.RDS")
@@ -15,7 +16,7 @@ PO_data_sel <- PO_data %>%
   filter(Source %in% c("CullReturnsNI", "MammalSurvey", "Bycatch", "NBDC", "CitizenScience", "webSurvey", "Other")) %>% 
   filter(Species %in% c("SikaDeer")) %>% 
   filter(Y < 965) %>% 
-  select(PO, X, Y) %>% 
+  dplyr::select(PO, X, Y) %>% 
   drop_na()
 
 PO_data_sel_sp <- SpatialPointsDataFrame(coords = PO_data_sel[,c(2:3)], 
@@ -27,7 +28,7 @@ PA_data <- read.csv("data/PA_data_all.csv", row.names = NULL)
 
 PA_data_sel <- PA_data %>%
   filter(Species %in% c("SikaDeer")) %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 PA_data_sel_sp <- SpatialPointsDataFrame(coords = PA_data_sel[,c(2:3)], 
@@ -36,15 +37,15 @@ PA_data_sel_sp <- SpatialPointsDataFrame(coords = PA_data_sel[,c(2:3)],
 
 
 PA_data_NI <- PA_data %>%
-  filter(Species %in% c("RedDeer")) %>% 
+  filter(Species %in% c("SikaDeer")) %>% 
   filter(Source == "BDS_survey") %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 PA_data_ROI <- PA_data %>%
-  filter(Species %in% c("RedDeer")) %>% 
+  filter(Species %in% c("SikaDeer")) %>% 
   filter(Source != "BDS_survey") %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 
@@ -69,14 +70,15 @@ copy_field_model <- PointedSDMs::intModel(PA_data_NI, PA_data_ROI, PO_data_sel,
 
 copy_field_model$specifySpatial(datasetName = 'PO_data_sel',
                                 alpha = 3/2, 
-                                prior.range = c(100, 0.5),
-                                prior.sigma = c(3, 0.5))
+                                prior.range = c(200, 0.1),
+                                prior.sigma = c(0.1, 0.1))
 
 copy_field_model$changeComponents(addComponent = 'PA_data_NI_spatial(main = coordinates, copy = "PO_data_sel_spatial", fixed = FALSE)')
 copy_field_model$changeComponents(addComponent = 'PA_data_ROI_spatial(main = coordinates, copy = "PO_data_sel_spatial", fixed = FALSE)')
 
 ## run model ####
 mdl_SD_copy <- runModel(copy_field_model)
+beep(2)
 
 summary(mdl_SD_copy)
 fixed.effectsSD <- mdl_SD_copy$summary.fixed
@@ -114,7 +116,7 @@ mdl_copy_pred = predict(mdl_SD_copy, mesh = mesh1, mask = in_bound,
                         # formula = ~PO_data_NI_spatial,
                         predictor = TRUE,
                         fun = 'linear')
-
+# beep(9)
 
 mdl_copy_pred_PO = predict(mdl_SD_copy, mesh = mesh1, mask = in_bound, 
                            formula = ~PO_data_sel_spatial,
@@ -125,6 +127,7 @@ mdl_copy_pred_covars = predict(mdl_SD_copy, mesh = mesh1, mask = in_bound,
                         formula = ~tree_cover_density + elevation + slope + human_footprint_index + forest_distances + small_woody_features,
                         # predictor = TRUE,
                         fun = 'linear')
+beep(3)
 
 par(mfrow = c(2,2))
 plot(raster(mdl_copy_pred$predictions["mean"]), main = "Mean, copied spde model")
