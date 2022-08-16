@@ -70,7 +70,7 @@ copy_field_model <- PointedSDMs::intModel(PA_data_NI, PA_data_ROI, PO_data_sel,
 
 copy_field_model$specifySpatial(datasetName = 'PO_data_sel',
                                 alpha = 3/2, 
-                                prior.range = c(100, 0.1),
+                                prior.range = c(100, 0.5),
                                 prior.sigma = c(2, 0.1))
 
 copy_field_model$changeComponents(addComponent = 'PA_data_NI_spatial(main = coordinates, copy = "PO_data_sel_spatial", fixed = FALSE)')
@@ -110,7 +110,7 @@ fixed.effectsFD %>%
   NULL
 
 
-#saveRDS(object = mdl_RD_copy, file = 'mdl_copy_fields.RDS')
+#saveRDS(object = mdl_FD_copy, file = 'outputs/mdl_copy_fields_FD.RDS')
 
 ## predict ####
 mdl_copy_pred = predict(mdl_FD_copy, mesh = mesh1, mask = in_bound, 
