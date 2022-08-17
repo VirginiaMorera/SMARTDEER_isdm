@@ -1,26 +1,24 @@
+source("scripts/setups.R")
 
 #### load all data ####
 ireland <- st_read("data/ireland_ITM.shp")
 
-mdl_RD <- readRDS("server_outputs/mdl_RD_def.RDS")
-RD_pred_lin <- readRDS("server_outputs/RD_pred_lin_def.RDS")
-RD_pred_resp <- readRDS("server_outputs/RD_pred_resp_def.RDS")
-RD_spde_PO <- readRDS("server_outputs/RD_spde_PO_def.RDS")
-RD_spde_PA <- readRDS("server_outputs/RD_spde_PA_def.RDS")
+mdl_RD <- readRDS("server_outputs/RedDeer_mdl_copy.RDS")
+RD_pred <- readRDS("server_outputs/RedDeer_prediction.RDS")
+RD_spde <- readRDS("server_outputs/RedDeer_spatial_field.RDS")
+RD_covar <- readRDS("server_outputs/RedDeer_covariate_effect.RDS")
 
-mdl_SD <- readRDS("server_outputs/mdl_SD_def.RDS")
-SD_pred_lin <- readRDS("server_outputs/SD_pred_lin_def.RDS")
-SD_pred_resp <- readRDS("server_outputs/SD_pred_resp_def.RDS")
-SD_spde_PO <- readRDS("server_outputs/SD_spde_PO_def.RDS")
-SD_spde_PA <- readRDS("server_outputs/SD_spde_PA_def.RDS")
+mdl_SD <- readRDS("server_outputs/SikaDeer_mdl_copy.RDS")
+SD_pred <- readRDS("server_outputs/SikaDeer_prediction.RDS")
+SD_spde <- readRDS("server_outputs/SikaDeer_spatial_field.RDS")
+SD_covar <- readRDS("server_outputs/SikaDeer_covariate_effect.RDS")
 
-mdl_FD <- readRDS("server_outputs/mdl_FD_def.RDS")
-FD_pred_lin <- readRDS("server_outputs/FD_pred_lin_def.RDS")
-FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
-FD_spde_PO <- readRDS("server_outputs/FD_spde_PO_def.RDS")
-FD_spde_PA <- readRDS("server_outputs/FD_spde_PA_def.RDS")
+mdl_FD <- readRDS("server_outputs/FallowDeer_mdl_copy.RDS")
+FD_pred <- readRDS("server_outputs/FallowDeer_prediction.RDS")
+FD_spde <- readRDS("server_outputs/FallowDeer_spatial_field.RDS")
+FD_covar <- readRDS("server_outputs/FallowDeer_covariate_effect.RDS")
 
-ireland_proj <- st_transform(ireland, RD_pred_lin@proj4string)
+ireland_proj <- st_transform(ireland, RD_pred$predictions@proj4string)
 ireland_sp <- as_Spatial(ireland_proj)
 ireland_latlon <- spTransform(ireland_sp, CRSobj = CRS("EPSG:4326"))
 
@@ -33,7 +31,7 @@ fixed.effectsRD <- mdl_RD$summary.fixed
 fixed.effectsRD$variable <- row.names(fixed.effectsRD)
 
 fixed.effectsRD <- fixed.effectsRD %>% 
-  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_sel_intercept"))
+  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_NI_intercept", "PA_data_ROI_intercept"))
 
 names(fixed.effectsRD) <- c("mean", "sd", "lower", "median", "higher", "mode", "kld", "variable")
 
@@ -62,7 +60,7 @@ fixed.effectsSD <- mdl_SD$summary.fixed
 fixed.effectsSD$variable <- row.names(fixed.effectsSD)
 
 fixed.effectsSD <- fixed.effectsSD %>% 
-  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_sel_intercept"))
+  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_NI_intercept", "PA_data_ROI_intercept"))
 
 names(fixed.effectsSD) <- c("mean", "sd", "lower", "median", "higher", "mode", "kld", "variable")
 
@@ -95,7 +93,7 @@ fixed.effectsFD <- mdl_FD$summary.fixed
 fixed.effectsFD$variable <- row.names(fixed.effectsFD)
 
 fixed.effectsFD <- fixed.effectsFD %>% 
-  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_sel_intercept"))
+  filter(variable %!in% c("PO_data_sel_intercept", "PA_data_NI_intercept", "PA_data_ROI_intercept"))
 
 names(fixed.effectsFD) <- c("mean", "sd", "lower", "median", "higher", "mode", "kld", "variable")
 
@@ -151,7 +149,7 @@ covarplot <- fixed.effects_all %>%
   # facet_wrap(~Species) +
   NULL
 
-Cairo::CairoPDF(file = "Fig2.pdf", width = 8, height = 6)
+Cairo::CairoPDF(file = "outputs/Fig2.pdf", width = 8, height = 6)
 covarplot
 dev.off()
 
@@ -160,41 +158,38 @@ dev.off()
 
 ## Red deer ##
 
-pred_linRD <- stack(raster(RD_pred_lin['mean']), raster(RD_pred_lin['sd']))
-pred_respRD <- stack(raster(RD_pred_resp['mean']), raster(RD_pred_resp['sd']))
-spde_PORD <- stack(raster(RD_spde_PO['mean']), raster(RD_spde_PO['sd']))
-spde_PARD <- stack(raster(RD_spde_PA['mean']), raster(RD_spde_PA['sd']))
+pred_respRD <- stack(raster(RD_pred$predictions['mean']), raster(RD_pred$predictions['sd']))
+spde_RD <- stack(raster(RD_spde$predictions['mean']), raster(RD_spde$predictions['sd']))
+covars_RD <- stack(raster(RD_covar$predictions['mean']), raster(RD_covar$predictions['sd']))
 
 ## Sika deer ##
 
-pred_linSD <- stack(raster(SD_pred_lin['mean']), raster(SD_pred_lin['sd']))
-pred_respSD <- stack(raster(SD_pred_resp['mean']), raster(SD_pred_resp['sd']))
-spde_POSD <- stack(raster(SD_spde_PO['mean']), raster(SD_spde_PO['sd']))
-spde_PASD <- stack(raster(SD_spde_PA['mean']), raster(SD_spde_PA['sd']))
+pred_respSD <- stack(raster(SD_pred$predictions['mean']), raster(SD_pred$predictions['sd']))
+spde_SD <- stack(raster(SD_spde$predictions['mean']), raster(SD_spde$predictions['sd']))
+covars_SD <- stack(raster(SD_covar$predictions['mean']), raster(SD_covar$predictions['sd']))
 
 ## Fallow deer ##
 
-pred_linFD <- stack(raster(FD_pred_lin['mean']), raster(FD_pred_lin['sd']))
-pred_respFD <- stack(raster(FD_pred_resp['mean']), raster(FD_pred_resp['sd']))
-spde_POFD <- stack(raster(FD_spde_PO['mean']), raster(FD_spde_PO['sd']))
-spde_PAFD <- stack(raster(FD_spde_PA['mean']), raster(FD_spde_PA['sd']))
+pred_respFD <- stack(raster(FD_pred$predictions['mean']), raster(FD_pred$predictions['sd']))
+spde_FD <- stack(raster(FD_spde$predictions['mean']), raster(FD_spde$predictions['sd']))
+covars_FD <- stack(raster(FD_covar$predictions['mean']), raster(FD_covar$predictions['sd']))
 
 
-#### Rescale lin predictions from 0 to 1 ####
+#### Rescale predictions from 0 to 1 ####
 
-rescaled_lins <- stack(rescale0to1(pred_linRD$mean), 
-                       rescale0to1(pred_linSD$mean), 
-                       rescale0to1(pred_linFD$mean))
+rescaled_preds <- stack(rescale0to1(pred_respRD$mean), 
+                       rescale0to1(pred_respSD$mean), 
+                       rescale0to1(pred_respFD$mean))
 
-rescaled_lins_latlon <- projectRaster(rescaled_lins, crs = CRS("EPSG:4326"))
-rescaled_lins_latlon <- mask(rescaled_lins_latlon, ireland_latlon)
+rescaled_preds_latlon <- projectRaster(rescaled_preds, crs = CRS("EPSG:4326"))
+rescaled_preds_latlon <- mask(rescaled_preds_latlon, ireland_latlon)
 
 
 #### Plot ####
 
 ## prediction means 
 
-predplot <- levelplot(rescaled_lins_latlon, col.regions = viridis(100), 
+predplot <- levelplot(rescaled_preds_latlon, col.regions = viridis(100), 
                       ylab = "Latitude", 
                       zscaleLog = FALSE,
                       names.attr = c("", "", ""),
@@ -202,7 +197,7 @@ predplot <- levelplot(rescaled_lins_latlon, col.regions = viridis(100),
                       margin = FALSE) + 
   latticeExtra::layer(sp.polygons(ireland_latlon, lwd = 1, col = "darkgray"))
 
-Cairo::CairoPDF(file = "Fig3a.pdf", height = 5, width = 10)
+Cairo::CairoPDF(file = "outputs/predictions.pdf", height = 5, width = 10)
 predplot
 dev.off()
 
