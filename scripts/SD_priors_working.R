@@ -109,14 +109,14 @@ fixed.effectsSD %>%
   NULL
 
 
-#saveRDS(object = mdl_RD_copy, file = 'mdl_copy_fields.RDS')
+saveRDS(object = mdl_SD_copy, file = 'server_outputs/SikaDeer_mdl_copy.RDS')
 
 ## predict ####
 mdl_copy_pred = predict(mdl_SD_copy, mesh = mesh1, mask = in_bound, 
                         # formula = ~PO_data_NI_spatial,
                         predictor = TRUE,
                         fun = 'linear')
-# beep(9)
+beep(9)
 
 mdl_copy_pred_PO = predict(mdl_SD_copy, mesh = mesh1, mask = in_bound, 
                            formula = ~PO_data_sel_spatial,
@@ -137,5 +137,7 @@ plot(raster(mdl_copy_pred_PO$predictions["mean"]), main = "Spatial field")
 par(mfrow = c(1,1))
 
 
-#saveRDS(object = mdl_sep_pred, 'mdl_sep_pred.RDS')
+saveRDS(mdl_copy_pred, file = "server_outputs/SikaDeer_prediction.RDS")
+saveRDS(mdl_copy_pred_PO, file = "server_outputs/SikaDeer_spatial_field.RDS")
+saveRDS(mdl_copy_pred_covars, file = "server_outputs/SikaDeer_covariate_effect.RDS")
 

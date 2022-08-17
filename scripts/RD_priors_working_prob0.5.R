@@ -1,3 +1,4 @@
+source("scripts/setups.R")
 
 in_bound <- readRDS("data/inner_boundary.RDS")
 mesh1 <- readRDS("data/meshLarge.RDS")
@@ -15,7 +16,7 @@ PO_data_sel <- PO_data %>%
   filter(Source %in% c("CullReturnsNI", "MammalSurvey", "Bycatch", "NBDC", "CitizenScience", "webSurvey", "Other")) %>% 
   filter(Species %in% c("RedDeer")) %>% 
   filter(Y < 965) %>% 
-  select(PO, X, Y) %>% 
+  dplyr::select(PO, X, Y) %>% 
   drop_na()
 
 PO_data_sel_sp <- SpatialPointsDataFrame(coords = PO_data_sel[,c(2:3)], 
@@ -27,7 +28,7 @@ PA_data <- read.csv("data/PA_data_all.csv", row.names = NULL)
 
 PA_data_sel <- PA_data %>%
   filter(Species %in% c("RedDeer")) %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 PA_data_sel_sp <- SpatialPointsDataFrame(coords = PA_data_sel[,c(2:3)], 
@@ -38,13 +39,13 @@ PA_data_sel_sp <- SpatialPointsDataFrame(coords = PA_data_sel[,c(2:3)],
 PA_data_NI <- PA_data %>%
   filter(Species %in% c("RedDeer")) %>% 
   filter(Source == "BDS_survey") %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 PA_data_ROI <- PA_data %>%
   filter(Species %in% c("RedDeer")) %>% 
   filter(Source != "BDS_survey") %>% 
-  select(PA = Deer.Presence, X, Y) %>% 
+  dplyr::select(PA = Deer.Presence, X, Y) %>% 
   drop_na()
 
 
@@ -69,14 +70,16 @@ copy_field_model <- PointedSDMs::intModel(PA_data_NI, PA_data_ROI, PO_data_sel,
 
 copy_field_model$specifySpatial(datasetName = 'PO_data_sel',
                                 alpha = 3/2, 
-                                prior.range = c(100, 0.5),
-                                prior.sigma = c(3, 0.5))
+                                prior.range = c(200, 0.1),
+                                prior.sigma = c(2, 0.5))
 
 copy_field_model$changeComponents(addComponent = 'PA_data_NI_spatial(main = coordinates, copy = "PO_data_sel_spatial", fixed = FALSE)')
 copy_field_model$changeComponents(addComponent = 'PA_data_ROI_spatial(main = coordinates, copy = "PO_data_sel_spatial", fixed = FALSE)')
 
 ## run model ####
 mdl_RD_copy <- runModel(copy_field_model)
+beep(2)
+
 
 summary(mdl_RD_copy)
 fixed.effectsRD <- mdl_RD_copy$summary.fixed
@@ -107,14 +110,14 @@ fixed.effectsRD %>%
   NULL
 
 
-#saveRDS(object = mdl_RD_copy, file = 'mdl_copy_fields.RDS')
+saveRDS(object = mdl_RD_copy, file = 'server_outputs/RedDeer_mdl_copy.RDS')
 
 ## predict ####
 mdl_copy_pred = predict(mdl_RD_copy, mesh = mesh1, mask = in_bound, 
                         # formula = ~PO_data_NI_spatial,
                         predictor = TRUE,
                         fun = 'linear')
-
+beep(9)
 
 mdl_copy_pred_PO = predict(mdl_RD_copy, mesh = mesh1, mask = in_bound, 
                            formula = ~PO_data_sel_spatial,
@@ -133,6 +136,9 @@ plot(raster(mdl_copy_pred_covars$predictions["mean"]), main = "Covariate effect"
 plot(raster(mdl_copy_pred_PO$predictions["mean"]), main = "Spatial field")
 par(mfrow = c(1,1))
 
+saveRDS(mdl_copy_pred, file = "server_outputs/RedDeer_prediction.RDS")
+saveRDS(mdl_copy_pred_PO, file = "server_outputs/RedDeer_spatial_field.RDS")
+saveRDS(mdl_copy_pred_covars, file = "server_outputs/RedDeer_covariate_effect.RDS")
 
 #saveRDS(object = mdl_sep_pred, 'mdl_sep_pred.RDS')
 

@@ -110,7 +110,7 @@ fixed.effectsFD %>%
   NULL
 
 
-#saveRDS(object = mdl_FD_copy, file = 'outputs/mdl_copy_fields_FD.RDS')
+saveRDS(object = mdl_FD_copy, file = 'outputs/FallowDeer_mdl_copy.RDS')
 
 ## predict ####
 mdl_copy_pred = predict(mdl_FD_copy, mesh = mesh1, mask = in_bound, 
@@ -138,5 +138,7 @@ plot(raster(mdl_copy_pred_PO$predictions["mean"]), main = "Spatial field")
 par(mfrow = c(1,1))
 
 
-#saveRDS(object = mdl_sep_pred, 'mdl_sep_pred.RDS')
+saveRDS(mdl_copy_pred, file = "server_outputs/FallowDeer_prediction.RDS")
+saveRDS(mdl_copy_pred_PO, file = "server_outputs/FallowDeer_spatial_field.RDS")
+saveRDS(mdl_copy_pred_covars, file = "server_outputs/FallowDeer_covariate_effect.RDS")
 
