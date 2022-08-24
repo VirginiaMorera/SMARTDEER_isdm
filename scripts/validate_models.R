@@ -1,33 +1,12 @@
----
-title: "Model validation"
-author: "Virginia Morera-Pujol"
-date: "14/02/2022"
-output:
-  html_document:
-    code_folding: hide  
-    number_sections: yes 
-    theme: readable      
-    highlight: "tango"    
-    toc: yes              
-    toc_float: true      
-editor_options: 
-  chunk_output_type: console
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F)
 rm(list = ls())
 source("scripts/setups.R")
-```
-
 
 # Model validation
+## To try and validate the results of the integrated species distribution models, 
+## we're going to use the density data based on fecal sampling by Tim Burkitt, and the estimates of low, moderate and high density collected during Coillte's desk surveys. We'll extract the value of the prediction at the centroid of each sampled property and, using linear models, we'll see how well the ISDM predictions can predict the observed values. 
 
-To try and validate the results of the integrated species distribution models, we're going to use the density data based on fecal sampling by Tim Burkitt, and the estimates of low, moderate and high density collected during Coillte's desk surveys. We'll extract the value of the prediction at the centroid of each sampled property and, using linear models, we'll see how well the ISDM predictions can predict the observed values. 
+## Load and modify data ####
 
-## Load and modify dta
-
-```{r}
 # load data
 
 ## map
@@ -76,128 +55,18 @@ culling_data <- read.csv("data/culling_data.csv", row.names = NULL)
 culling_data <- culling_data %>% 
   dplyr::select(Year = SeasonStart, County, Species, Deer_corrected, Deer_killed) %>% 
   filter(Year >= 2010)
-```
 
+## -----------------------------------------------------------------------------
 
-## Validate models with Tim Burkitt data
+## Validate models with Tim Burkitt data, extracting densities at centroid ####
 
-Tim Burkitt's data consists in a few properties sampled for several consecutive years. We can either calculate an average density for the properties sampled more than once, having only one dataset to validate against, or model each year's data against the prediction. 
-We're going to do both here
-
-### Averaged densities whole property area
-
-First we average densities in properties sampled more than once
-
-```{r}
-dens_area <- dens_area %>% 
-  group_by(Site_id, Species) %>% 
-  summarise(Dens.avg = mean(Deer_density, na.rm = T)) %>% 
-  ungroup()
-```
-
-
-Sum raster values within each property
-```{r}
-byproperty_abundances <- data.frame(
-  Site_id = unique(dens_area$Site_id), 
-  Red_model = NA, 
-  Sika_model = NA, 
-  Fallow_model = NA
-)
-
-# disaggregate so res is 0.05 km and there's more than 1 pixel per property
-preds2 <- disaggregate(preds, fact = 100)
-
-preds2 <- preds2/10000
-
-sum(preds$Red[], na.rm = T);sum(preds2$Red[], na.rm = T)
-
-for (i in seq_along(byproperty_abundances$Site_id)) {
-  # i = 1
-  prop <- dens_area %>% filter(Site_id == unique(byproperty_abundances$Site_id)[i])
-  prop <- prop[1,]
-  cropped <- mask(crop(preds2, prop), prop)
-  
-  # print(levelplot(cropped, main = unique(byproperty_abundances$Site_id)[i]) +
-  #         latticeExtra::layer(sp.polygons(as_Spatial(prop))))
-
-  sum_raster_cells <-cellStats(cropped, 'sum')  
-  byproperty_abundances[i, 2:4] <- sum_raster_cells
-}
-
-```
-
-Put together in a dataset with the actual property densities
-
-```{r}
-dens_predict_df <- dens_area %>% 
-  left_join(byproperty_abundances)
-```
-
-
-And finally we generate the plots
-
-```{r, fig.height=10, fig.width=12, fig.align='center'}
-my.formula <- y ~ x
-
-RD_plot <- dens_predict_df %>% 
-    # filter(prediction > 0.1) %>%
-    # filter(Dens.avg > 0) %>%
-    filter(Species == "RedDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Red_model)) +
-    geom_point() + 
-    geom_smooth(method='lm', formula= my.formula) + 
-    stat_poly_eq(formula = my.formula, 
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                 parse = TRUE) +
-    theme_bw() + 
-    labs(y = "Tim Burkitt density", x = "Model prediction", 
-         title = "Red deer prediction validation")
-  
-FD_plot <- dens_predict_df %>% 
-    # filter(prediction > 0.1) %>%
-    # filter(Dens.avg > 0) %>%
-    filter(Species == "FallowDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Fallow_model)) +
-    geom_point() + 
-    geom_smooth(method='lm', formula= my.formula) + 
-    stat_poly_eq(formula = my.formula, 
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                 parse = TRUE) +
-    theme_bw() + 
-    labs(y = "Tim Burkitt density", x = "Model prediction", 
-         title = "Fallow deer prediction validation")
-
-SD_plot <- dens_predict_df %>% 
-    # filter(prediction > 0.1) %>%
-    # filter(Dens.avg > 0) %>%
-    filter(Species == "SikaDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Sika_model)) +
-    geom_point() + 
-    geom_smooth(method='lm', formula= my.formula) + 
-    stat_poly_eq(formula = my.formula, 
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                 parse = TRUE) +
-    theme_bw() + 
-    labs(y = "Tim Burkitt density", x = "Model prediction", 
-         title = "Sika deer prediction validation")
-
-cowplot::plot_grid(RD_plot, FD_plot, SD_plot)
-```
-
-### Extracted densities at centroid 
-
-Average
-```{r}
+# Average
 dens_latlon <- dens_latlon %>% 
   group_by(Site_id, Species) %>% 
   summarise(Dens.avg = mean(Deer_density, na.rm = T)) %>% 
   ungroup()
-```
 
-
-Extract and merge
-```{r}
+# Extract and merge
 dens_latlon2 <- dens_latlon %>% 
   distinct(Site_id, .keep_all = T) %>% 
   st_as_sf(sf_column_name = "geometry") 
@@ -212,10 +81,8 @@ extracted_dens <- data.frame(
 dens_latlon %<>%
   left_join(extracted_dens)
          
-```
 
-Calculate Kendall correlation
-```{r}
+# Calculate Kendall correlation
 corr_data <- dens_latlon %>% 
   st_drop_geometry(NULL) %>% 
   group_by(Species) %>% 
@@ -224,12 +91,8 @@ corr_data <- dens_latlon %>%
   mutate(x = 0.30,
          y = 50)
 
-```
 
-
-And finally we generate the plots
-
-```{r, fig.height=10, fig.width=12, fig.align='center'}
+# And finally we generate the plots
 dens_latlon %>% 
   ggplot(aes(y = Dens.avg, x = Model_density)) +
   geom_point() +
@@ -244,15 +107,13 @@ dens_latlon %>%
   facet_wrap(~Species, nrow = 2) + 
   labs(y = "Tim Burkitt density", x = "Model prediction")
 
-```
 
+## -----------------------------------------------------------------------------
 
+## Validate models by county with total culling returns ####
 
-## Validate models by county with total culling returns
-
-We first have to add up the predicted intensity by county
-
-```{r}
+# We first have to add up the predicted intensity by county
+ 
 bycounty_abundances <- data.frame(
   County = ireland$NAME_TAG, 
   Red_model = NA, 
@@ -275,23 +136,19 @@ bycounty_abundances %>%
   kableExtra::kable(digits = 2, align = "rrrr", caption = "Added abundances by county") %>% 
   kableExtra::kable_classic(full_width = F, html_font = "Cambria")
 
-```
 
-We now merge that dataset with the culling returns (averaging the last 10 years)
-(Remember that there is no culling data for the NI counties in this dataset)
+ 
+# We now merge that dataset with the culling returns (averaging the last 10 years)
+# (Remember that there is no culling data for the NI counties in this dataset)
 
-```{r}
 cull_validating_avg <- culling_data %>% 
   group_by(County, Species) %>% 
   summarise(Deer_total = mean(Deer_killed, na.rm = T)) %>% 
   ungroup() %>% 
   full_join(bycounty_abundances)
 
-```
 
-And finally plot 
-
-```{r, fig.height = 10, fig.width = 15, fig.align='center'}
+# And finally plot 
 my.formula <-  y~x
 
 (RD_cull <- cull_validating_avg %>% 
@@ -367,14 +224,7 @@ cull_validating_avg %>%
   filter(Species == "Red") %>% 
   filter(County != "Wicklow") %>%
   cor_test(Deer_total, Red_model, method = "kendall") 
-```
 
-Finally plot them all together
-
-```{r}
+ 
+# Finally plot them all together
 cowplot::plot_grid(RD_cull, FD_cull, SD_cull, SD2_cull, ncol = 2)
-
-```
-
-
-
