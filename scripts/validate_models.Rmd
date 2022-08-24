@@ -16,8 +16,8 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F)
-source("scripts/setups.R")
 rm(list = ls())
+source("scripts/setups.R")
 ```
 
 
@@ -29,31 +29,40 @@ To try and validate the results of the integrated species distribution models, w
 
 ```{r}
 # load data
-projKM <- "+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +units=km +no_defs"
 
+## map
 ireland <- st_read("data/ireland_ITM.shp")
-dens_data <- read.csv("data/density_latlon_coillte_dens_surveys.csv", 
-                      row.names = NULL)
-coillte_data <- readRDS("data/PA_data_all.RDS")
 
-RD_pred_resp <- readRDS("server_outputs/RD_pred_resp_def.RDS")
-SD_pred_resp <- readRDS("server_outputs/SD_pred_resp_def.RDS")
-FD_pred_resp <- readRDS("server_outputs/FD_pred_resp_def.RDS")
+ireland_proj <- st_transform(ireland, projKM)
 
-RD_pred_scaled <- rescale0to1(raster(RD_pred_resp["mean"]))
-SD_pred_scaled <- rescale0to1(raster(SD_pred_resp["mean"]))
-FD_pred_scaled <- rescale0to1(raster(FD_pred_resp["mean"]))
+## tim burkitt densities
+dens_data <- readRDS("data/coillte_dens_surveys_area_and_point.RDS")
 
-dens_sp <- dens_data %>% 
+dens_latlon <- dens_data %>%
+  st_set_geometry(NULL) %>% 
   st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs(ireland)) %>% 
   st_transform(projKM)
+
+dens_area <- dens_data %>% 
+  dplyr::select(-Longitude, -Latitude) %>% 
+  st_transform(projKM)
+
+## coillte surveys
+coillte_data <- readRDS("data/PA_data_all.RDS")
 
 coillte_data <- coillte_data %>% 
   dplyr::select(Red, Fallow, Sika, Year) %>% 
   st_transform(projKM) %>% 
   st_centroid()
 
-ireland_proj <- st_transform(ireland, projKM)
+## modelled densities
+RD_pred_resp <- readRDS("server_outputs/RedDeer_prediction.RDS")
+SD_pred_resp <- readRDS("server_outputs/SikaDeer_prediction.RDS")
+FD_pred_resp <- readRDS("server_outputs/FallowDeer_prediction.RDS")
+
+RD_pred_scaled <- rescale0to1(raster(RD_pred_resp$predictions["mean"]))
+SD_pred_scaled <- rescale0to1(raster(SD_pred_resp$predictions["mean"]))
+FD_pred_scaled <- rescale0to1(raster(FD_pred_resp$predictions["mean"]))
 
 preds <- stack(RD_pred_scaled,
                SD_pred_scaled,
@@ -61,25 +70,12 @@ preds <- stack(RD_pred_scaled,
 
 names(preds) <- c("Red", "Sika", "Fallow")
 
-
+## culling returns
 culling_data <- read.csv("data/culling_data.csv", row.names = NULL)
 
 culling_data <- culling_data %>% 
   dplyr::select(Year = SeasonStart, County, Species, Deer_corrected, Deer_killed) %>% 
   filter(Year >= 2010)
-
-nfi_data <- readRDS("C:/Users/morer/Dropbox/Virginia_post_UB/01_Smartdeer/NFI_data_analysis/final_df.RDS")
-
-
-damage_bin <- nfi_data %>% 
-  mutate(Deer_damage = if_else(Biotic_damage_agent == "deer", 1, 0), 
-         Deer_damage = if_else(is.na(Deer_damage), 0, Deer_damage)) %>% 
-  st_as_sf(sf_column_name = "geometry") %>% 
-  dplyr::select(Plot_ID, Deer_damage) %>% 
-  distinct() %>% 
-  group_by(Plot_ID) %>% 
-  summarise(Deer_damage = sum(Deer_damage)) %>% 
-  ungroup()
 ```
 
 
@@ -88,40 +84,67 @@ damage_bin <- nfi_data %>%
 Tim Burkitt's data consists in a few properties sampled for several consecutive years. We can either calculate an average density for the properties sampled more than once, having only one dataset to validate against, or model each year's data against the prediction. 
 We're going to do both here
 
-### Averaged densities
+### Averaged densities whole property area
 
 First we average densities in properties sampled more than once
 
 ```{r}
-dens_avg <- dens_sp %>% 
+dens_area <- dens_area %>% 
   group_by(Site_id, Species) %>% 
-  summarise(Dens.avg = mean(Deer.Density, na.rm = T)) %>% 
+  summarise(Dens.avg = mean(Deer_density, na.rm = T)) %>% 
   ungroup()
 ```
 
 
-We now extract the values from the raster
+Sum raster values within each property
+```{r}
+byproperty_abundances <- data.frame(
+  Site_id = unique(dens_area$Site_id), 
+  Red_model = NA, 
+  Sika_model = NA, 
+  Fallow_model = NA
+)
+
+# disaggregate so res is 0.05 km and there's more than 1 pixel per property
+preds2 <- disaggregate(preds, fact = 100)
+
+preds2 <- preds2/10000
+
+sum(preds$Red[], na.rm = T);sum(preds2$Red[], na.rm = T)
+
+for (i in seq_along(byproperty_abundances$Site_id)) {
+  # i = 1
+  prop <- dens_area %>% filter(Site_id == unique(byproperty_abundances$Site_id)[i])
+  prop <- prop[1,]
+  cropped <- mask(crop(preds2, prop), prop)
+  
+  # print(levelplot(cropped, main = unique(byproperty_abundances$Site_id)[i]) +
+  #         latticeExtra::layer(sp.polygons(as_Spatial(prop))))
+
+  sum_raster_cells <-cellStats(cropped, 'sum')  
+  byproperty_abundances[i, 2:4] <- sum_raster_cells
+}
+
+```
+
+Put together in a dataset with the actual property densities
 
 ```{r}
-pred_values <- raster::extract(preds, dens_avg)
-
-dens_avg <- dens_avg %>% 
-  mutate(Red_pred = pred_values[,1], 
-         Sika_pred = pred_values[,2],
-         Fallow_pred = pred_values[,3])
+dens_predict_df <- dens_area %>% 
+  left_join(byproperty_abundances)
 ```
 
 
 And finally we generate the plots
 
-```{r plot avg densities, fig.height=10, fig.width=12, fig.align='center'}
+```{r, fig.height=10, fig.width=12, fig.align='center'}
 my.formula <- y ~ x
 
-RD_plot <- dens_avg %>% 
+RD_plot <- dens_predict_df %>% 
     # filter(prediction > 0.1) %>%
     # filter(Dens.avg > 0) %>%
     filter(Species == "RedDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Red_pred)) +
+    ggplot(aes(y = Dens.avg, x = Red_model)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
@@ -131,11 +154,11 @@ RD_plot <- dens_avg %>%
     labs(y = "Tim Burkitt density", x = "Model prediction", 
          title = "Red deer prediction validation")
   
-FD_plot <- dens_avg %>% 
+FD_plot <- dens_predict_df %>% 
     # filter(prediction > 0.1) %>%
     # filter(Dens.avg > 0) %>%
     filter(Species == "FallowDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Fallow_pred)) +
+    ggplot(aes(y = Dens.avg, x = Fallow_model)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
@@ -145,11 +168,11 @@ FD_plot <- dens_avg %>%
     labs(y = "Tim Burkitt density", x = "Model prediction", 
          title = "Fallow deer prediction validation")
 
-SD_plot <- dens_avg %>% 
+SD_plot <- dens_predict_df %>% 
     # filter(prediction > 0.1) %>%
     # filter(Dens.avg > 0) %>%
     filter(Species == "SikaDeer") %>% 
-    ggplot(aes(y = Dens.avg, x = Sika_pred)) +
+    ggplot(aes(y = Dens.avg, x = Sika_model)) +
     geom_point() + 
     geom_smooth(method='lm', formula= my.formula) + 
     stat_poly_eq(formula = my.formula, 
@@ -162,175 +185,70 @@ SD_plot <- dens_avg %>%
 cowplot::plot_grid(RD_plot, FD_plot, SD_plot)
 ```
 
+### Extracted densities at centroid 
 
-### Densities by year
-
-Extract raster values for the full dataset
+Average
 ```{r}
-pred_yearly_values <- raster::extract(preds, dens_sp)
-
-dens_sp <- dens_sp %>% 
-  mutate(Red_pred = pred_yearly_values[,1], 
-         Sika_pred = pred_yearly_values[,2],
-         Fallow_pred = pred_yearly_values[,3])
-
+dens_latlon <- dens_latlon %>% 
+  group_by(Site_id, Species) %>% 
+  summarise(Dens.avg = mean(Deer_density, na.rm = T)) %>% 
+  ungroup()
 ```
 
 
-#### Red deer
-
-```{r plot red deer densities, fig.height=10, fig.width=12, fig.align='center'}
-(RD_plot <- dens_sp %>% 
-   # filter(prediction > 0.1) %>%
-   # filter(Dens.avg > 0) %>%
-   filter(Species == "RedDeer") %>% 
-   group_by(Year) %>% 
-   mutate(count = n()) %>% 
-   ungroup() %>%  
-   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(y = Deer.Density, x = Red_pred)) +
-   geom_point() + 
-   geom_smooth(method='lm', formula= my.formula) + 
-   stat_poly_eq(formula = my.formula, 
-                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                parse = TRUE) +
-   theme_bw() + 
-   facet_wrap(~Year, scales = "free") + 
-   labs(y = "Tim Burkitt density", x = "Model prediction", 
-        title = "Red deer prediction validation"))
-```
-
-
-#### Fallow deer
-
-```{r plot fallow deer densities, fig.height=10, fig.width=12, fig.align='center'}
-(FD_plot <- dens_sp %>% 
-   # filter(prediction > 0.1) %>%
-   # filter(Dens.avg > 0) %>%
-   filter(Species == "FallowDeer") %>% 
-   group_by(Year) %>% 
-   mutate(count = n()) %>% 
-   ungroup() %>%  
-   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(y = Deer.Density, x = Fallow_pred)) +
-   geom_point() + 
-   geom_smooth(method='lm', formula= my.formula) + 
-   stat_poly_eq(formula = my.formula, 
-                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                parse = TRUE) +
-   theme_bw() + 
-   facet_wrap(~Year, scales = "free") + 
-   labs(y = "Tim Burkitt density", x = "Model prediction", 
-        title = "Fallow deer prediction validation"))
-```
-
-
-#### Sika deer
-
-```{r plot sika deer densities, fig.height=10, fig.width=12, fig.align='center'}
-(SD_plot <- dens_sp %>% 
-   # filter(prediction > 0.1) %>%
-   # filter(Dens.avg > 0) %>%
-   filter(Species == "SikaDeer") %>% 
-   group_by(Year) %>% 
-   mutate(count = n()) %>% 
-   ungroup() %>%  
-   filter(count > 15) %>%  # avoid plotting years with less than 10 properties sampled
-   ggplot(aes(y = Deer.Density, x = Sika_pred)) +
-   geom_point() + 
-   geom_smooth(method='lm', formula= my.formula) + 
-   stat_poly_eq(formula = my.formula, 
-                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
-                parse = TRUE) +
-   theme_bw() + 
-   facet_wrap(~Year, scales = "free") + 
-   labs(y = "Tim Burkitt density", x = "Model prediction", 
-        title = "Sika deer prediction validation"))
-```
-
-
-## Validate models with Coillte survey estimates
-
-
-First we extract the prediction value at the properties centroids
-
+Extract and merge
 ```{r}
-est_pred <- raster::extract(preds, coillte_data)
+dens_latlon2 <- dens_latlon %>% 
+  distinct(Site_id, .keep_all = T) %>% 
+  st_as_sf(sf_column_name = "geometry") 
 
-names(est_pred) <- c("Red", "Sika", "Fallow")
+preds_at_points <- raster::extract(preds, dens_latlon2)
 
-coillte_data <- coillte_data %>% 
-  mutate(Red_pred = est_pred[,1], 
-         Sika_pred = est_pred[,2],
-         Fallow_pred = est_pred[,3])
+extracted_dens <- data.frame(
+  Site_id = rep(dens_latlon2$Site_id, times = 3),
+  Species = c(rep("RedDeer", 418), rep("SikaDeer", 418), rep("FallowDeer", 418)),
+  Model_density = c(preds_at_points[,1], preds_at_points[,2], preds_at_points[,3]))
+
+dens_latlon %<>%
+  left_join(extracted_dens)
+         
+```
+
+Calculate Kendall correlation
+```{r}
+corr_data <- dens_latlon %>% 
+  st_drop_geometry(NULL) %>% 
+  group_by(Species) %>% 
+  # filter(Species == "RedDeer") %>% 
+  cor_test(Dens.avg, Model_density, method = "kendall") %>% 
+  mutate(x = 0.30,
+         y = 50)
+
 ```
 
 
-Now plot the validations
-
-### Red deer
+And finally we generate the plots
 
 ```{r, fig.height=10, fig.width=12, fig.align='center'}
-my.formula <- y ~ x
+dens_latlon %>% 
+  ggplot(aes(y = Dens.avg, x = Model_density)) +
+  geom_point() +
+  # geom_smooth(method='lm', formula= my.formula) + 
+  # stat_poly_eq(formula = my.formula, 
+  #              aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+  #              parse = TRUE) +
+  geom_text(data = corr_data, aes(x = x, y = y, 
+                                  label = paste("Kendall corr. =", cor, 
+                                  "\n p-value = ", p, sep = " "))) +
+  theme_bw() + 
+  facet_wrap(~Species, nrow = 2) + 
+  labs(y = "Tim Burkitt density", x = "Model prediction")
 
-(RD_plot <- coillte_data %>% 
-    mutate(Red = factor(Red, levels = c("No", "Low", "Moderate", "High")), 
-           Red.num = as.numeric(Red)) %>% 
-    ggplot(aes(x = Red.num, y = Red_pred)) +
-    geom_boxplot(aes(x = Red, y = Red_pred)) +
-    # geom_point() +
-    geom_smooth(method='lm', formula= my.formula) +
-    stat_poly_eq(formula = my.formula,
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-                 parse = TRUE) +
-    theme_bw() + 
-    facet_wrap(~Year, scales = "free") + 
-    labs(x = "Coillte density estimates", y = "Model prediction", title = "Red deer prediction validation"))
-```
-
-### Fallow deer
-
-```{r, fig.height=10, fig.width=12, fig.align='center'}
-my.formula <- y ~ x
-
-(FD_plot <- coillte_data %>% 
-    mutate(Fallow = factor(Fallow, levels = c("No", "Low", "Moderate", "High")), 
-           Fallow.num = as.numeric(Fallow)) %>% 
-    ggplot(aes(x = Fallow.num, y = Fallow_pred)) +
-    geom_boxplot(aes(x = Fallow, y = Fallow_pred)) +
-    # geom_point() +
-    geom_smooth(method='lm', formula= my.formula) +
-    stat_poly_eq(formula = my.formula,
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-                 parse = TRUE) +
-    theme_bw() + 
-    facet_wrap(~Year, scales = "free") + 
-    labs(x = "Coillte density estimates", y = "Model prediction", title = "Fallow deer prediction validation"))
 ```
 
 
-### Sika deer
 
-```{r, fig.height=10, fig.width=12, fig.align='center'}
-my.formula <- y ~ x
-
-(SD_plot <- coillte_data %>% 
-    mutate(Sika = factor(Sika, levels = c("No", "Low", "Moderate", "High")), 
-           Sika.num = as.numeric(Sika)) %>% 
-    ggplot(aes(x = Sika.num, y = Sika_pred)) +
-    geom_boxplot(aes(x = Sika, y = Sika_pred)) +
-    # geom_point() +
-    geom_smooth(method='lm', formula= my.formula) +
-    stat_poly_eq(formula = my.formula,
-                 aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-                 parse = TRUE) +
-    theme_bw() + 
-    facet_wrap(~Year, scales = "free") + 
-    labs(x = "Coillte density estimates", y = "Model prediction", title = "Sika deer prediction validation"))
-```
-
-
-## Validate models by county with culling returns
+## Validate models by county with total culling returns
 
 We first have to add up the predicted intensity by county
 
@@ -359,104 +277,6 @@ bycounty_abundances %>%
 
 ```
 
-### Validate with average cullings
-
-We now merge that dataset with the culling returns (averaging the last 10 years)
-(Remember that there is no culling data for the NI counties in this dataset)
-
-```{r}
-cull_validating_avg <- culling_data %>% 
-  group_by(County, Species) %>% 
-  summarise(Deer_corrected = mean(Deer_corrected, na.rm = T)) %>% 
-  ungroup() %>% 
-  full_join(bycounty_abundances)
-```
-
-
-And finally plot 
-
-```{r, fig.height = 10, fig.width = 15, fig.align='center'}
-my.formula <-  y~x
-
-RD_cull <- cull_validating_avg %>% 
-  filter(Species == "Red") %>% 
-  ggplot(aes(y = Deer_corrected, x = Red_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.1, min.segment.length = 10) + 
-  theme_bw() + 
-  labs(y = "Average returns by license", 
-       x = "Aggregated county-level prediction")
-
-
-FD_cull <- cull_validating_avg %>% 
-  filter(Species == "Fallow") %>% 
-  ggplot(aes(y = Deer_corrected, x = Fallow_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.5, min.segment.length = 10) + 
-  theme_bw() + 
-  labs(y = "Average returns by license", 
-       x = "Aggregated county-level prediction")
-
-SD_cull <- cull_validating_avg %>% 
-  filter(Species == "Sika") %>% 
-  ggplot(aes(y = Deer_corrected, x = Sika_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text_repel(aes(label = County), nudge_x = 1, nudge_y = 0.1, min.segment.length = 10) + 
-  theme_bw() + 
-  labs(y = "Average returns by license", 
-       x = "Aggregated county-level prediction")
-
-# Cairo::CairoPDF(file = "Fig4.pdf", width = 15, height = 12)
-cowplot::plot_grid(RD_cull, SD_cull, FD_cull, ncol = 2, labels = c("A", "B", "C"))
-# dev.off()
-```
-
-```{r}
-RD_mdl <- cull_validating_avg %>% 
-  filter(Species == "Red") %>% 
-  lm(Deer_corrected ~ Red_model, data = .)
-
-summary(RD_mdl)
-
-SD_mdl <- cull_validating_avg %>% 
-  filter(Species == "Sika") %>% 
-  lm(Deer_corrected ~ Sika_model, data = .)
-
-summary(SD_mdl)
-
-FD_mdl <- cull_validating_avg %>% 
-  filter(Species == "Fallow") %>% 
-  lm(Deer_corrected ~ Fallow_model, data = .)
-
-summary(FD_mdl)
-
-
-mdls_sum <- bind_rows(jtools::glance(RD_mdl), 
-                      jtools::glance(SD_mdl), 
-                      jtools::glance(FD_mdl)) %>% 
-  mutate(Species = c("Red deer", "Sika deer", "Fallow deer")) %>% 
-  dplyr::select(Species, r2 = r.squared, r2.adj = adj.r.squared, F.stat = statistic, 
-                p.val = p.value) 
-
-write.csv(mdls_sum, "mdls_sum.csv")
-  
-
-```
-
-### Validate with total cullings
-
 We now merge that dataset with the culling returns (averaging the last 10 years)
 (Remember that there is no culling data for the NI counties in this dataset)
 
@@ -466,15 +286,15 @@ cull_validating_avg <- culling_data %>%
   summarise(Deer_total = mean(Deer_killed, na.rm = T)) %>% 
   ungroup() %>% 
   full_join(bycounty_abundances)
-```
 
+```
 
 And finally plot 
 
 ```{r, fig.height = 10, fig.width = 15, fig.align='center'}
 my.formula <-  y~x
 
-RD_cull <- cull_validating_avg %>% 
+(RD_cull <- cull_validating_avg %>% 
   filter(Species == "Red") %>% 
   ggplot(aes(y = Deer_total, x = Red_model)) + 
   geom_point() + 
@@ -485,10 +305,14 @@ RD_cull <- cull_validating_avg %>%
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Red deer prediction validation by county")
+       title = "Red deer prediction validation by county"))
 
+cull_validating_avg %>% 
+  filter(Species == "Red") %>% 
+  cor_test(Deer_total, Red_model, method = "kendall") 
+  
 
-FD_cull <- cull_validating_avg %>% 
+(FD_cull <- cull_validating_avg %>% 
   filter(Species == "Fallow") %>% 
   ggplot(aes(y = Deer_total, x = Fallow_model)) + 
   geom_point() + 
@@ -499,10 +323,16 @@ FD_cull <- cull_validating_avg %>%
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Fallow deer prediction validation by county")
+       title = "Fallow deer prediction validation by county"))
 
-SD_cull <- cull_validating_avg %>% 
+cull_validating_avg %>% 
+  filter(Species == "Fallow") %>% 
+  cor_test(Deer_total, Fallow_model, method = "kendall") 
+
+
+(SD_cull <- cull_validating_avg %>% 
   filter(Species == "Sika") %>% 
+  # filter(County != "Wicklow") %>%
   ggplot(aes(y = Deer_total, x = Sika_model)) + 
   geom_point() + 
   geom_smooth(method='lm', formula= my.formula) +
@@ -512,62 +342,39 @@ SD_cull <- cull_validating_avg %>%
   geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
   labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Sika deer prediction validation by county")
+       title = "Sika deer prediction validation by county"))
+
+cull_validating_avg %>% 
+  filter(Species == "Sika") %>% 
+  cor_test(Deer_total, Sika_model, method = "kendall") 
 
 
-cowplot::plot_grid(RD_cull, FD_cull, SD_cull, ncol = 2)
-
-```
-
-
-## Validate models with NFI damage data
-
-```{r}
-damage_sp <- extract(preds, damage_bin)
-
-names(damage_sp) <- c("Red", "Sika", "Fallow")
-
-damage_data <- damage_bin %>% 
-  mutate(Red_pred = damage_sp[,1], 
-         Sika_pred = damage_sp[,2],
-         Fallow_pred = damage_sp[,3])
-```
-
-### Model damage against deer predictions interacted
-```{r}
-md1 <- glm(Deer_damage ~ (Red_pred+Sika_pred+Fallow_pred)^2, 
-           data = damage_data, 
-           family = "binomial")
-
-summary(md1)
-with(summary(md1), 1 - deviance/null.deviance)
-
-damage_data_output <- damage_data %>% 
-  mutate(predicted_damage = predict(md1, newdata = NULL, type = "response")) %>% 
-  dplyr::select(-Plot_ID, -Deer_damage) %>%
-  st_drop_geometry() %>% 
-  pivot_longer(!predicted_damage, names_to = "Species", values_to = "Predicted_densities") %>% 
-  mutate(Species = recode(Species, Red_pred = "Red deer", Sika_pred = "Sika deer", Fallow_pred = "Fallow deer"), 
-         Species = factor(Species, levels = c("Red deer", "Sika deer", "Fallow deer"))) 
-
-ggplot(damage_data_output) + 
-  geom_point(aes(x = Predicted_densities, y = predicted_damage, col = Species)) + 
-  labs(x = "Predicted abundances", y = "Predicted damage") + 
-  facet_wrap(~Species, nrow = 2) +
-  theme_bw()
-
-
-```
-
-### Cumulative deer abundances
-```{r}
-damage_data <- damage_data %>% 
-  mutate(sum_densities = Red_pred + Sika_pred + Fallow_pred)
-
-
-ggplot(data = damage_data, aes(y = sum_densities, x = factor(Deer_damage))) + 
-  geom_boxplot() + 
+(SD2_cull <- cull_validating_avg %>% 
+  filter(Species == "Sika") %>% 
+  filter(County != "Wicklow") %>%
+  ggplot(aes(y = Deer_total, x = Sika_model)) + 
+  geom_point() + 
+  geom_smooth(method='lm', formula= my.formula) +
+  stat_poly_eq(formula = my.formula,
+               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               parse = TRUE) +
+  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
   theme_bw() + 
-  labs(y = "Cumulative densities", x = "Deer damage", 
-       title = "Cumulative densities vs. binary damage")
+  labs(y = "Average culling returns (total)", x = "Model prediction", 
+       title = "Sika deer prediction validation by county"))
+
+cull_validating_avg %>% 
+  filter(Species == "Red") %>% 
+  filter(County != "Wicklow") %>%
+  cor_test(Deer_total, Red_model, method = "kendall") 
 ```
+
+Finally plot them all together
+
+```{r}
+cowplot::plot_grid(RD_cull, FD_cull, SD_cull, SD2_cull, ncol = 2)
+
+```
+
+
+
