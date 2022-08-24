@@ -23,8 +23,11 @@ library(climateStability)
 library(ggrepel)
 library(ggthemes)
 library(beepr)
+<<<<<<< HEAD
 library(rstatix)
 library(magrittr)
+=======
+>>>>>>> bb9d3ef22acdf933b04a11b776b83bf2a7a5fb15
 
 
 projKM <- "+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000
