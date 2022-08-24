@@ -149,7 +149,11 @@ covarplot <- fixed.effects_all %>%
   # facet_wrap(~Species) +
   NULL
 
+<<<<<<< HEAD
 Cairo::CairoPDF(file = "outputs/Fig2_rev.pdf", width = 8, height = 6)
+=======
+Cairo::CairoPDF(file = "outputs/Fig2.pdf", width = 8, height = 6)
+>>>>>>> bb9d3ef22acdf933b04a11b776b83bf2a7a5fb15
 covarplot
 dev.off()
 
@@ -197,7 +201,11 @@ predplot <- levelplot(rescaled_preds_latlon, col.regions = viridis(100),
                       margin = FALSE) + 
   latticeExtra::layer(sp.polygons(ireland_latlon, lwd = 1, col = "darkgray"))
 
+<<<<<<< HEAD
 Cairo::CairoPDF(file = "outputs/Fig3a_rev.pdf", height = 5, width = 10)
+=======
+Cairo::CairoPDF(file = "outputs/predictions.pdf", height = 5, width = 10)
+>>>>>>> bb9d3ef22acdf933b04a11b776b83bf2a7a5fb15
 predplot
 dev.off()
 
