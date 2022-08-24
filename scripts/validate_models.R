@@ -26,14 +26,6 @@ dens_area <- dens_data %>%
   dplyr::select(-Longitude, -Latitude) %>% 
   st_transform(projKM)
 
-## coillte surveys
-coillte_data <- readRDS("data/PA_data_all.RDS")
-
-coillte_data <- coillte_data %>% 
-  dplyr::select(Red, Fallow, Sika, Year) %>% 
-  st_transform(projKM) %>% 
-  st_centroid()
-
 ## modelled densities
 RD_pred_resp <- readRDS("server_outputs/RedDeer_prediction.RDS")
 SD_pred_resp <- readRDS("server_outputs/SikaDeer_prediction.RDS")
@@ -87,26 +79,31 @@ corr_data <- dens_latlon %>%
   st_drop_geometry(NULL) %>% 
   group_by(Species) %>% 
   # filter(Species == "RedDeer") %>% 
-  cor_test(Dens.avg, Model_density, method = "kendall") %>% 
-  mutate(x = 0.30,
-         y = 50)
+  cor_test(Dens.avg, Model_density, method = "kendall") 
 
+write.csv(corr_data, file = "server_outputs/tim_burkit_correlations.csv")
 
 # And finally we generate the plots
-dens_latlon %>% 
+p1 <- dens_latlon %>% 
+  mutate(
+    Species = recode(Species, RedDeer = "Red", FallowDeer = "Fallow", SikaDeer = "Sika"),
+    Species = factor(Species, 
+                     levels = c("Red", "Fallow", "Sika"))) %>%  
+  
   ggplot(aes(y = Dens.avg, x = Model_density)) +
   geom_point() +
   # geom_smooth(method='lm', formula= my.formula) + 
   # stat_poly_eq(formula = my.formula, 
   #              aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
   #              parse = TRUE) +
-  geom_text(data = corr_data, aes(x = x, y = y, 
-                                  label = paste("Kendall corr. =", cor, 
-                                  "\n p-value = ", p, sep = " "))) +
   theme_bw() + 
   facet_wrap(~Species, nrow = 2) + 
-  labs(y = "Tim Burkitt density", x = "Model prediction")
+  labs(y = "Density (from faecal pellets)", x = "Model prediction")
 
+
+Cairo::CairoPDF(file = "server_outputs/FigS8.pdf", height = 10, width = 12)
+p1
+dev.off()
 
 ## -----------------------------------------------------------------------------
 
@@ -136,6 +133,9 @@ bycounty_abundances %>%
   kableExtra::kable(digits = 2, align = "rrrr", caption = "Added abundances by county") %>% 
   kableExtra::kable_classic(full_width = F, html_font = "Cambria")
 
+bycounty_abundances_long <- bycounty_abundances %>% 
+  pivot_longer(Red_model:Fallow_model, names_to = "Species", values_to = "County_pred") %>% 
+  mutate(Species = recode(Species, Red_model = 'Red', Sika_model = 'Sika', Fallow_model = 'Fallow'))
 
  
 # We now merge that dataset with the culling returns (averaging the last 10 years)
@@ -145,86 +145,34 @@ cull_validating_avg <- culling_data %>%
   group_by(County, Species) %>% 
   summarise(Deer_total = mean(Deer_killed, na.rm = T)) %>% 
   ungroup() %>% 
-  full_join(bycounty_abundances)
+  filter(Species %!in% c("Hybrid", "Muntjac")) %>% 
+  full_join(bycounty_abundances_long)
 
+x <- cull_validating_avg %>% 
+  filter(Species == "Sika") %>%
+  filter(County != "Wicklow") %>% 
+  mutate(Species = "Sika (no Wicklow)")
+
+cull_validating_avg <- bind_rows(cull_validating_avg, x)
 
 # And finally plot 
-my.formula <-  y~x
+(all_cull <- cull_validating_avg %>% 
+    mutate(Species = factor(Species, 
+                            levels = c("Red", "Fallow", "Sika", "Sika (no Wicklow)"))) %>%  
+    ggplot(aes(y = Deer_total, x = County_pred)) + 
+    geom_point(alpha = 0.5) + 
+    geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 10, nudge_x = 10) +
+    theme_bw() + 
+    facet_wrap(~Species, nrow = 2, scales = "free") +
+    labs(y = "Average culling returns (total)", x = "Model prediction"))
 
-(RD_cull <- cull_validating_avg %>% 
-  filter(Species == "Red") %>% 
-  ggplot(aes(y = Deer_total, x = Red_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
-  theme_bw() + 
-  labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Red deer prediction validation by county"))
+cull_corr <- cull_validating_avg %>% 
+  group_by(Species) %>% 
+  cor_test(Deer_total, County_pred, method = "kendall") 
 
-cull_validating_avg %>% 
-  filter(Species == "Red") %>% 
-  cor_test(Deer_total, Red_model, method = "kendall") 
-  
+write.csv(cull_corr, file = "server_outputs/culling_correlations.csv")
 
-(FD_cull <- cull_validating_avg %>% 
-  filter(Species == "Fallow") %>% 
-  ggplot(aes(y = Deer_total, x = Fallow_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
-  theme_bw() + 
-  labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Fallow deer prediction validation by county"))
+Cairo::CairoPDF(file = "server_outputs/FigS9.pdf", height = 10, width = 12)
+all_cull
+dev.off()
 
-cull_validating_avg %>% 
-  filter(Species == "Fallow") %>% 
-  cor_test(Deer_total, Fallow_model, method = "kendall") 
-
-
-(SD_cull <- cull_validating_avg %>% 
-  filter(Species == "Sika") %>% 
-  # filter(County != "Wicklow") %>%
-  ggplot(aes(y = Deer_total, x = Sika_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
-  theme_bw() + 
-  labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Sika deer prediction validation by county"))
-
-cull_validating_avg %>% 
-  filter(Species == "Sika") %>% 
-  cor_test(Deer_total, Sika_model, method = "kendall") 
-
-
-(SD2_cull <- cull_validating_avg %>% 
-  filter(Species == "Sika") %>% 
-  filter(County != "Wicklow") %>%
-  ggplot(aes(y = Deer_total, x = Sika_model)) + 
-  geom_point() + 
-  geom_smooth(method='lm', formula= my.formula) +
-  stat_poly_eq(formula = my.formula,
-               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
-               parse = TRUE) +
-  geom_text(aes(label = County), check_overlap = TRUE, nudge_y = 1.5) +
-  theme_bw() + 
-  labs(y = "Average culling returns (total)", x = "Model prediction", 
-       title = "Sika deer prediction validation by county"))
-
-cull_validating_avg %>% 
-  filter(Species == "Red") %>% 
-  filter(County != "Wicklow") %>%
-  cor_test(Deer_total, Red_model, method = "kendall") 
-
- 
-# Finally plot them all together
-cowplot::plot_grid(RD_cull, FD_cull, SD_cull, SD2_cull, ncol = 2)
