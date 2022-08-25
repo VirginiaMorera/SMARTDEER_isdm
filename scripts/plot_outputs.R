@@ -149,7 +149,7 @@ covarplot <- fixed.effects_all %>%
   # facet_wrap(~Species) +
   NULL
 
-Cairo::CairoPDF(file = "outputs/Fig2_rev.pdf", width = 8, height = 6)
+Cairo::CairoPDF(file = "server_outputs/Fig2_rev.pdf", width = 8, height = 6)
 covarplot
 dev.off()
 

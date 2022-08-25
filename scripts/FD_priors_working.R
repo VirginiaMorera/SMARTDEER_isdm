@@ -111,7 +111,7 @@ fixed.effectsFD %>%
 
 
 saveRDS(object = mdl_FD_copy, file = 'outputs/FallowDeer_mdl_copy.RDS')
-mdl_FD_copy <- readRDS('outputs/FallowDeer_mdl_copy.RDS')
+mdl_FD_copy <- readRDS('server_outputs/FallowDeer_mdl_copy.RDS')
 
 ## predict ####
 mdl_copy_pred = predict(mdl_FD_copy, mesh = mesh1, mask = in_bound, 
