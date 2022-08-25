@@ -91,7 +91,7 @@ p1 <- dens_latlon %>%
                      levels = c("Red", "Fallow", "Sika"))) %>%  
   
   ggplot(aes(y = Dens.avg, x = Model_density)) +
-  geom_point() +
+  geom_point(alpha = 0.5) +
   # geom_smooth(method='lm', formula= my.formula) + 
   # stat_poly_eq(formula = my.formula, 
   #              aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
