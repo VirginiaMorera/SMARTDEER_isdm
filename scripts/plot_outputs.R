@@ -192,7 +192,7 @@ rescaled_preds_latlon <- mask(rescaled_preds_latlon, ireland_latlon)
 predplot <- levelplot(rescaled_preds_latlon, col.regions = viridis(100), 
                       ylab = "Latitude", 
                       zscaleLog = FALSE,
-                      names.attr = c("", "", ""),
+                      names.attr = c("Red deer", "Sika deer", "Fallow deer"),
                       xlab=NULL,
                       margin = FALSE) + 
   latticeExtra::layer(sp.polygons(ireland_latlon, lwd = 1, col = "darkgray"))
@@ -219,8 +219,8 @@ Cairo::CairoPDF(file = "outputs/Fig3b_rev.pdf", height = 5, width = 10)
 sdplot
 dev.off()
 
-Cairo::CairoPDF(file = "outputs/Fig3_rev.pdf", height = 10, width = 12)
-cowplot::plot_grid(predplot, sdplot, nrow = 2)
+Cairo::CairoPDF(file = "server_outputs/Fig3_rev.pdf", height = 10, width = 12)
+cowplot::plot_grid(predplot, sdplot, nrow = 2, labels = c('A', 'B'))
 dev.off()
 
 #### Plot spatial fields####
