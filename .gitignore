@@ -3,8 +3,13 @@
 .RData
 .Ruserdata
 
-# Created by https://www.toptal.com/developers/gitignore/api/r
-# Edit at https://www.toptal.com/developers/gitignore?templates=r
+#ignore folder with large data
+data/
+large_env_data/
+mesh_outputs/
+outputs/
+server_outputs/
+
 ### R ###
 # History files
 .Rapp.history
@@ -35,9 +40,3 @@ vignettes/*.pdf
 # R package: bookdown caching files
 /*_files/
 # End of https://www.toptal.com/developers/gitignore/api/r
-
-## added by me ##
-#ignore folder with large data
-large_env_data/
-data/
-server_outputs/
