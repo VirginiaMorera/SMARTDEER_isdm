@@ -9,7 +9,7 @@ ireland <- st_read("data/ireland_ITM.shp") %>%
 PO_data <- read.csv("data/PO_data_all.csv", row.names = NULL)
 
 PO_data_sel <- PO_data %>% 
-  filter(Species %in% c("FallowDeer")) %>% 
+  filter(Species %in% c("RedDeer")) %>% 
   filter(Y < 965) %>% 
   dplyr::select(PO, X, Y) %>% 
   drop_na() %>% 
@@ -27,12 +27,12 @@ plot(covar_scaled)
 
 covar_scaled <- project(covar_scaled, projKM)
 
-(pp <- ggplot() + 
+pp <- ggplot() + 
   geom_spatraster(data = covar_scaled, aes(fill = Elevation)) +
   scale_fill_viridis_c(na.value = NA) + 
   geom_sf(data = ireland, fill = NA) + 
   geom_sf(data = PO_data_sel) + 
-  theme_bw())
+  theme_bw()
 
 Cairo::CairoPDF(file = "mesh_outputs/point_data.pdf", width = 6, height = 9)
 pp
@@ -52,13 +52,13 @@ boundary <- ireland %>%
   st_buffer(dist = 20)
 
 set.seed(123)
-shift2 <- data.frame(x = rnorm(1, mean = 5, sd = 2), y = rnorm(1, mean = 5, sd = 2)) %>% 
+shift2 <- data.frame(x = rnorm(1, mean = 5, sd = 5), y = rnorm(1, mean = 5, sd = 5)) %>% 
   st_as_sf(coords = c("x", "y"))
 
-shift3 <- data.frame(x = rnorm(1, mean = 5, sd = 2), y = rnorm(1, mean = 5, sd = 2)) %>% 
+shift3 <- data.frame(x = rnorm(1, mean = 5, sd = 5), y = rnorm(1, mean = 5, sd = 5)) %>% 
   st_as_sf(coords = c("x", "y"))
 
-shift4 <- data.frame(x = rnorm(1, mean = 5, sd = 2), y = rnorm(1, mean = 5, sd = 2)) %>% 
+shift4 <- data.frame(x = rnorm(1, mean = 5, sd = 5), y = rnorm(1, mean = 5, sd = 5)) %>% 
   st_as_sf(coords = c("x", "y"))
 
 boundary2 <- boundary$geometry + shift2$geometry
@@ -103,7 +103,7 @@ for(i in 1:4) {
   ipoints[[i]] <- fm_int(meshes[[i]])
 }
 
-ggplot() + 
+ipb <- ggplot() + 
   geom_spatraster(data = covar_scaled, aes(fill = Elevation), alpha = 0.5) + 
   scale_fill_viridis_c(na.value = NA) + 
   gg(meshes[[1]]) + 
