@@ -374,7 +374,7 @@ Lambda3 <- predict(
 
 bind_rows(Lambda1, Lambda2, Lambda3)
 
-# ## 7.4. Plot ####
+## 7.4. Plot ####
 # ggplot() + 
 #   gg(data = pred3, aes(fill = q0.5), geom = "tile") +
 #   geom_sf(data = ireland, fill = NA) +
@@ -397,12 +397,12 @@ bind_rows(Lambda1, Lambda2, Lambda3)
 #   
 #   plot_layout(ncol = 2)
 # 
-# fixed3 <-  tibble::rownames_to_column(m3$summary.fixed, "Variable")
-# 
-# fixed3 <- fixed3 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_3")
+fixed3 <-  tibble::rownames_to_column(m3$summary.fixed, "Variable")
+
+fixed3 <- fixed3 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_3")
 # 
 # all_fixed <- bind_rows(fixed1, fixed2, fixed3)
 # 
@@ -503,12 +503,12 @@ bind_rows(Lambda1, Lambda2, Lambda3, Lambda4)
 #   
 # plot_layout(ncol = 2)
 # 
-# fixed4 <-  tibble::rownames_to_column(m4$summary.fixed, "Variable")
-# 
-# fixed4 <- fixed4 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_4")
+fixed4 <-  tibble::rownames_to_column(m4$summary.fixed, "Variable")
+
+fixed4 <- fixed4 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_4")
 # 
 # all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4) 
 # 
@@ -608,12 +608,12 @@ bind_rows(Lambda1, Lambda2, Lambda3, Lambda4, Lambda5)
 #   
 #   plot_layout(ncol = 2)
 # 
-# fixed5 <-  tibble::rownames_to_column(m5$summary.fixed, "Variable")
-# 
-# fixed5 <- fixed5 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_5")
+fixed5 <-  tibble::rownames_to_column(m5$summary.fixed, "Variable")
+
+fixed5 <- fixed5 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_5")
 # 
 # all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5) 
 # 
@@ -714,13 +714,13 @@ bind_rows(Lambda1, Lambda2, Lambda3, Lambda4, Lambda5, Lambda6)
 #   
 #   plot_layout(ncol = 2)
 # 
-# fixed6 <-  tibble::rownames_to_column(m6$summary.fixed, "Variable")
-# 
-# fixed6 <- fixed6 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_6") 
-# 
+fixed6 <-  tibble::rownames_to_column(m6$summary.fixed, "Variable")
+
+fixed6 <- fixed6 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_6")
+ 
 # all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5, fixed6) 
 # 
 # covars <- all_fixed %>% 
@@ -814,7 +814,7 @@ Lambda7 <- predict(
 
 # bind_rows(Lambda1, Lambda2, Lambda3, Lambda4, Lambda5, Lambda6, Lambda7)
 # 
-# ## 11.4. Plot ####
+## 11.4. Plot ####
 # ggplot() + 
 #   gg(data = resp7, aes(fill = q0.5), geom = "tile") +
 #   geom_sf(data = ireland, fill = NA) +
@@ -848,13 +848,13 @@ Lambda7 <- predict(
 #   
 #   plot_layout(ncol = 2)
 # 
-# fixed7 <-  tibble::rownames_to_column(m7$summary.fixed, "Variable")
-# 
-# fixed7 <- fixed7 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_7") 
-# 
+fixed7 <-  tibble::rownames_to_column(m7$summary.fixed, "Variable")
+
+fixed7 <- fixed7 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_7")
+
 # all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5, fixed6, fixed7) 
 # 
 # covars <- all_fixed %>% 
@@ -981,15 +981,15 @@ bind_rows(Lambda1, Lambda2, Lambda3, Lambda4, Lambda5, Lambda6, Lambda7, Lambda8
 #   
 #   plot_layout(ncol = 2)
 # 
-# fixed8 <-  tibble::rownames_to_column(m8$summary.fixed, "Variable")
-# 
-# fixed8 <- fixed8 %>% 
-#   select(Variable, Median = '0.5quant', 
-#          Low = '0.025quant', High = '0.975quant') %>% 
-#   mutate(Model = "fm_subdivide_8") 
-# 
-# all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5, fixed6, fixed7, fixed8) 
-# 
+fixed8 <-  tibble::rownames_to_column(m8$summary.fixed, "Variable")
+
+fixed8 <- fixed8 %>%
+  select(Variable, Median = '0.5quant',
+         Low = '0.025quant', High = '0.975quant') %>%
+  mutate(Model = "fm_subdivide_8")
+
+all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5, fixed6, fixed7, fixed8)
+
 # covars <- all_fixed %>% 
 #   filter(Variable != "Intercept")
 # 
@@ -1165,15 +1165,18 @@ pred_by_county_agg <- pred_by_county %>%
   select(NAME_TAG, X1.Subdivision:X8.subdivisions) %>% 
   pivot_longer(X1.Subdivision:X8.subdivisions, names_to = "Subdivision",
                values_to = "Prediction") %>% 
-  mutate(Subdivision = str_remove(Subdivision, "X"))
+  mutate(Subdivision = str_remove(Subdivision, "X")) %>% 
+  mutate(Subdivision = str_replace(Subdivision, "\\.", " "))
 
 ggplot() + 
   geom_sf(data = pred_by_county_agg, 
           aes(fill = Prediction)) + 
-  facet_wrap(~Subdivision)
+  scale_fill_viridis() + 
+  facet_wrap(~Subdivision) + 
+  theme_bw()
 
-ggsave(filename = "mesh_outputs/response_pred.pdf", 
-       width = 12, height = 8.5, units = "in") 
+ggsave(filename = "mesh_outputs/response_pred_agg.pdf", 
+       width = 8.5, height = 12, units = "in") 
 
 ## 13.2 Spatial fields ####
 
