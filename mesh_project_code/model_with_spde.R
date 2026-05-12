@@ -191,7 +191,7 @@ ggplot(fixed1) +
   theme_bw() + 
   labs(title = "fm_int_1") 
 
-save(m1, ipoints1, pred1, spde1, Lambda1, file = "mesh_outputs/objects/m1.Rdata")
+save(m1, ipoints1, pred1, resp1, spde1, Lambda1, file = "mesh_outputs/objects/m1.Rdata")
 
 # 6. FM_INT 2 ####
 
@@ -305,7 +305,7 @@ ggplot(all_fixed) +
   theme_bw() + 
   labs(title = "all") 
 
-save(m2, ipoints2, pred2, spde2, Lambda2, file = "mesh_outputs/objects/m2.Rdata")
+save(m2, ipoints2, pred2, resp2, spde2, Lambda2, file = "mesh_outputs/objects/m2.Rdata")
 
 # 7. FM_INT 3 ####
 
@@ -418,12 +418,12 @@ fixed3 <- fixed3 %>%
 #   theme_bw() + 
 #   labs(title = "all") 
 
-save(m3, ipoints3, pred3, spde3, Lambda3, file = "mesh_outputs/objects/m3.Rdata")
+save(m3, ipoints3, pred3, resp3, spde3, Lambda3, file = "mesh_outputs/objects/m3.Rdata")
 
 # 8. FM_INT 4 ####
 
 ## 8.1 Subdivide mesh ####
-# load("mesh_outputs/objects/m4.Rdata")
+load("mesh_outputs/objects/m4.Rdata")
 
 ipoints4 <-  fm_int(fm_subdivide(mesh, 4))
 
@@ -524,12 +524,12 @@ fixed4 <- fixed4 %>%
 #   theme_bw() + 
 #   labs(title = "all") 
 
-save(m4, ipoints4, pred4, spde4, Lambda4, file = "mesh_outputs/objects/m4.Rdata")
+save(m4, ipoints4, pred4, resp4, spde4, Lambda4, file = "mesh_outputs/objects/m4.Rdata")
 
 # 9. FM_INT 5 ####
 
 ## 9.1 Subdivide mesh ####
-# load("mesh_outputs/objects/m5.Rdata")
+load("mesh_outputs/objects/m5.Rdata")
 
 ipoints5 <-  fm_int(fm_subdivide(mesh, 5))
 
@@ -629,12 +629,12 @@ fixed5 <- fixed5 %>%
 #   theme_bw() + 
 #   labs(title = "all") 
 
-save(m5, ipoints5, pred5, spde5, Lambda5, file = "mesh_outputs/objects/m5.Rdata")
+save(m5, ipoints5, pred5, spde5, resp5, Lambda5, file = "mesh_outputs/objects/m5.Rdata")
 
 # 10. FM_INT 6 ####
 
 ## 10.1 Subdivide mesh ####
-# load("mesh_outputs/objects/m6.Rdata")
+load("mesh_outputs/objects/m6.Rdata")
 
 ipoints6 <-  fm_int(fm_subdivide(mesh, 6))
 
@@ -753,12 +753,12 @@ fixed6 <- fixed6 %>%
 #   theme_bw() + 
 #   labs(title = "Intercept")
 
-save(m6, ipoints6, pred6, spde6, Lambda6, file = "mesh_outputs/objects/m6.Rdata")
+save(m6, ipoints6, pred6, resp6, spde6, Lambda6, file = "mesh_outputs/objects/m6.Rdata")
 
 # 11. FM_INT 7 ####
 
 ## 11.1 Subdivide mesh ####
-# load("mesh_outputs/objects/m7.Rdata")
+load("mesh_outputs/objects/m7.Rdata")
 
 ipoints7 <-  fm_int(fm_subdivide(mesh, 7))
 
@@ -887,12 +887,12 @@ fixed7 <- fixed7 %>%
 #   theme_bw() + 
 #   labs(title = "Intercept") 
 
-save(m7, ipoints7, pred7, spde7, Lambda7, file = "mesh_outputs/objects/m7.Rdata")
+save(m7, ipoints7, pred7, spde7, resp7, Lambda7, file = "mesh_outputs/objects/m7.Rdata")
 
 # 12. FM_INT 8 ####
 
 ## 12.1 Subdivide mesh ####
-# load("mesh_outputs/objects/m8.Rdata")
+load("mesh_outputs/objects/m8.Rdata")
 
 ipoints8 <-  fm_int(fm_subdivide(mesh, 8))
 
@@ -1020,7 +1020,7 @@ all_fixed <- bind_rows(fixed1, fixed2, fixed3, fixed4, fixed5, fixed6, fixed7, f
 #   theme_bw() + 
 #   labs(title = "Intercept") 
 
-save(m8, ipoints8, pred8, spde8, Lambda8, file = "mesh_outputs/objects/m8.Rdata")
+save(m8, ipoints8, pred8, spde8, resp8, Lambda8, file = "mesh_outputs/objects/m8.Rdata")
 
 
 # 13. final plots ####
@@ -1072,8 +1072,6 @@ ggsave(filename = "mesh_outputs/predictions.pdf",
 
 ## 13.1bis Predicted in response scale ####
 
-## 13.1 Predicted means ####
-
 resp1_raster <- data.frame(st_coordinates(resp1), z = resp1$q0.5) %>% 
   rast(.)
 
@@ -1104,7 +1102,7 @@ all_resps <- c(resp1_raster, resp2_raster, resp3_raster, resp4_raster,
 crs(all_resps) <- crs(ireland)
 all_resps <- mask(all_resps, ireland)
 
-all_resps[all_resps > 2] <- NA
+
 names(all_resps) <- c("1 Subdivision", "2 subdivisions","3 subdivisions",
                       "4 subdivisions", "5 subdivisions", "6 subdivisions", 
                       "7 subdivisions", "8 subdivisions") 
@@ -1113,52 +1111,65 @@ ggplot() +
   geom_spatraster(data = all_resps$`1 Subdivision`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("1 subdivision") + 
   theme_bw() +
 
 ggplot() + 
   geom_spatraster(data = all_resps$`2 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("2 subdivisions") +
   theme_bw() +
   
 ggplot() + 
   geom_spatraster(data = all_resps$`3 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("3 subdivisions") +
   theme_bw() +
   
 ggplot() + 
   geom_spatraster(data = all_resps$`4 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("4 subdivisions") +
   theme_bw() + 
   
 ggplot() + 
   geom_spatraster(data = all_resps$`5 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("5 subdivisions") +
   theme_bw() +
   
 ggplot() + 
   geom_spatraster(data = all_resps$`6 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("6 subdivisions") +
   theme_bw() +
   
 ggplot() + 
   geom_spatraster(data = all_resps$`7 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("7 subdivisions") +
   theme_bw() +
   
 ggplot() + 
   geom_spatraster(data = all_resps$`8 subdivisions`) +
   geom_sf(data = ireland, fill = NA) + 
   scale_fill_viridis_c(na.value = NA, option = "H") + 
+  ggtitle("8 subdivisions") +
   theme_bw() +
   
 plot_layout(nrow = 3)
-  
+
+ggsave(filename = "mesh_outputs/response_pred.pdf", 
+       width = 12, height = 10, units = "in") 
+
+## 13.1.3 Prediction aggregated by county ####   
+
 pred_by_county <- st_as_sf(extract(all_resps, ireland, fun = sum, bind = TRUE))
 
 pred_by_county_agg <- pred_by_county %>% 
@@ -1177,6 +1188,55 @@ ggplot() +
 
 ggsave(filename = "mesh_outputs/response_pred_agg.pdf", 
        width = 8.5, height = 12, units = "in") 
+
+
+## 13.1.4 Prediction uncertainty ####
+
+CI1_raster <- data.frame(st_coordinates(pred1), z = pred1$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI2_raster <- data.frame(st_coordinates(pred2), z = pred2$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI3_raster <- data.frame(st_coordinates(pred3), z = pred3$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI4_raster <- data.frame(st_coordinates(pred4), z = pred4$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI5_raster <- data.frame(st_coordinates(pred5), z = pred5$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI6_raster <- data.frame(st_coordinates(pred6), z = pred6$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI7_raster <- data.frame(st_coordinates(pred7), z = pred7$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+CI8_raster <- data.frame(st_coordinates(pred8), z = pred8$q0.975-pred1$q0.025) %>% 
+  rast(.)
+
+all_CIs <- c(CI1_raster, CI2_raster, CI3_raster, CI4_raster, 
+             CI5_raster, CI6_raster, CI7_raster, CI8_raster)
+
+crs(all_CIs) <- crs(ireland)
+
+all_CIs <- mask(all_CIs, ireland)
+
+names(all_CIs) <- c("1 Subdivision", "2 subdivisions","3 subdivisions",
+                    "4 subdivisions", "5 subdivisions", "6 subdivisions", 
+                    "7 subdivisions", "8 subdivisions") 
+
+ggplot() + 
+  geom_spatraster(data = all_CIs) +
+  geom_sf(data = ireland, fill = NA) + 
+  scale_fill_viridis_c(na.value = NA) + 
+  theme_bw() +
+  facet_wrap(~lyr, ncol = 4)
+
+ggsave(filename = "mesh_outputs/prediction_CIs.pdf", 
+       width = 12, height = 8.5, units = "in") 
+
 
 ## 13.2 Spatial fields ####
 
@@ -1366,7 +1426,7 @@ all_fixed <- all_fixed %>%
                            Eff.elevation = "Elevation", 
                            Eff.slope = "Slope", 
                            Eff.tree_cover = "Tree cover", 
-                           Eff.swf = "Small woody features"))
+                           Eff.swf = "Small woody \n features"))
 
 covars <- all_fixed %>% 
   filter(Variable != "Intercept") 
@@ -1402,12 +1462,64 @@ ggsave(filename = "mesh_outputs/FixedEffects.pdf",
        width = 12, height = 6, units = "in") 
 
 
+## 12.5 Integration points ####
+
+ipoints1f <- st_filter(ipoints1, ireland)
+ipoints2f <- st_filter(ipoints2, ireland)
+ipoints3f <- st_filter(ipoints3, ireland)
+ipoints4f <- st_filter(ipoints4, ireland)
+ipoints5f <- st_filter(ipoints5, ireland)
+ipoints6f <- st_filter(ipoints6, ireland)
+ipoints7f <- st_filter(ipoints7, ireland)
+ipoints8f <- st_filter(ipoints8, ireland)
+
+
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints1f, size = 0.5) + 
+  theme_bw() + 
+
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints2f, size = 0.5) + 
+  theme_bw() + 
+
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints3f, size = 0.5) + 
+  theme_bw() + 
+  
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints4f, size = 0.5) + 
+  theme_bw() + 
+  
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints5f, size = 0.5) + 
+  theme_bw() + 
+  
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints6f, size = 0.5) + 
+  theme_bw() + 
+  
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints7f, size = 0.5) + 
+  theme_bw() + 
+  
+ggplot() + 
+  geom_sf(data = ireland, fill = NA, col = "darkred") + 
+  geom_sf(data = ipoints8f, size = 0.5) + 
+  theme_bw() + 
+  
+plot_layout(ncol = 4)
 
 
 
-
-
-
+ggsave(filename = "mesh_outputs/ipoints.pdf", 
+       width = 12, height = 6, units = "in") 
 
 
 
